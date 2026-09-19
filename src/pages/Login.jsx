@@ -15,15 +15,16 @@ const Login = () => {
     try {
       setLoading(true);
       
-      // Gọi hàm trong Auth.js
+      // Gọi hàm gọi API (đã kết nối qua axiosClient hoặc giả lập trong authApi)
       const response = await loginApi(values);
 
-      if (response.success) {
-        const { accessToken, user } = response.data;
+      if (response.success || response.data) {
+        // Lấy dữ liệu theo đúng cấu trúc JSON mới từ Backend/Mock API
+        const { username, role, token, expiresIn } = response.data;
 
-        // Lưu token và user vào localStorage
-        localStorage.setItem('accessToken', accessToken);
-        localStorage.setItem('user', JSON.stringify(user));
+        // Lưu token và đóng gói lại user vào localStorage để AppRoutes đọc
+        localStorage.setItem('accessToken', token);
+        localStorage.setItem('user', JSON.stringify({ username, role }));
 
         // Tải lại route gốc để App đọc accessToken mới và mở Home
         window.location.replace('/');
@@ -68,7 +69,6 @@ const Login = () => {
             label={<span className="text-[16px] font-semibold text-[#4A3B32]">Tên đăng nhập</span>}
             name="username"
             rules={[{ required: true, message: 'Vui lòng nhập tên đăng nhập!' }]}
-            // Đã bỏ absolute, dùng margin bottom vừa đủ để dòng lỗi có chỗ hiện mà không làm vỡ form
             className="!mb-6 [&_.ant-form-item-control]:mt-0 [&_.ant-form-item-label]:pb-2 [&_.ant-form-item-label>label]:h-auto"
           >
             <Input
