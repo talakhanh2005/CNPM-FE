@@ -3,17 +3,23 @@ import { useNavigate } from 'react-router-dom';
 import Lobby from '../layouts/Lobby';
 import Button from './Button';
 
-const NewRoom = () => {
+const NewRoom = ({ onExit }) => {
   const navigate = useNavigate();
   const [participantMode, setParticipantMode] = useState('free');
   const [emotionRecognition, setEmotionRecognition] = useState(true);
+  const [isExiting, setIsExiting] = useState(false);
 
   const handleCreateRoom = () => navigate('/meeting/new');
+  const handleExit = () => setIsExiting(true);
 
   return (
-    <Lobby>
-      <div className="flex h-full flex-col">
-        <div className="mt-7 space-y-6">
+    <div
+      onAnimationEnd={isExiting ? onExit : undefined}
+      className={isExiting ? 'new-room-exit h-full' : 'h-full'}
+    >
+      <Lobby>
+        <div className="grid h-full grid-cols-2 gap-5 [&>button]:!mt-0">
+        <div className="col-span-2 space-y-6">
           <fieldset>
             <legend className="mb-3 text-[15px] font-bold text-[#4A3B32]">Quản lý người tham gia</legend>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -46,9 +52,29 @@ const NewRoom = () => {
           </div>
         </div>
 
-        <Button type="button" onClick={handleCreateRoom} className="mt-auto !h-[50px] !w-full !rounded-full !bg-[#1E7DFF] !px-6 !text-[16px] !font-bold !text-white">Tạo mới</Button>
-      </div>
-    </Lobby>
+        <Button type="button" onClick={handleCreateRoom} className="mt-auto !h-[50px] !w-full !rounded-full !bg-[#1E7DFF] !px-6 !text-[16px] !font-bold !text-white">Tạo phòng</Button>
+        <Button type="button" onClick={handleExit} className="mt-3 !h-[50px] !w-full !rounded-full !border !border-[#000000] !bg-white !px-6 !text-[16px] !font-bold">Thoát</Button>
+        </div>
+      </Lobby>
+      <style>{`
+        @keyframes newRoomExit {
+          from {
+            opacity: 1;
+            transform: scale(1);
+          }
+          to {
+            opacity: 0;
+            transform: scale(0);
+          }
+        }
+
+        .new-room-exit {
+          transform-origin: center;
+          animation: newRoomExit 380ms cubic-bezier(0.4, 0, 1, 1) forwards;
+          pointer-events: none;
+        }
+      `}</style>
+    </div>
   );
 };
 

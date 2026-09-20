@@ -1,13 +1,13 @@
 import Header from '../components/Header';
 
-const HomeLayout = ({ children }) => {
+const HomeLayout = ({ children, onJoinRoom }) => {
   return (
     <div className="min-h-screen w-full bg-[#FFFCDD] flex flex-col font-['Roboto'] relative overflow-x-hidden overflow-y-auto">
       
       <div className="absolute top-[-20%] left-[-10%] w-[500px] aspect-square rounded-full bg-[#FCCC0E]/10 pointer-events-none"></div>
       <div className="pointer-events-none fixed bottom-[-28%] right-[-12%] z-0 aspect-square w-[clamp(280px,42vw,600px)] rounded-full bg-[#F2D8A6]/30"></div>
 
-      <Header />
+      <Header onJoinRoom={onJoinRoom} />
 
       <main className="flex-1 flex flex-col items-center pt-12 pb-[40px] relative z-10">
         {children}

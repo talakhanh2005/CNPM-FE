@@ -3,6 +3,7 @@ import HomeLayout from '../layouts/HomeLayout';
 import Button from '../components/Button';
 import NewRoom from '../components/NewRoom';
 import History from '../components/HistoryRoom';
+import JoinRoom from '../components/JoinRoom';
 
 const menuItems = [
   {
@@ -23,6 +24,7 @@ const menuItems = [
 
 const TeacherHome = () => {
   const [activeMenu, setActiveMenu] = useState(null);
+  const [joinRoomCode, setJoinRoomCode] = useState(null);
   const activeItem = menuItems.find((item) => item.id === activeMenu);
   const Content = activeItem?.content;
 
@@ -45,8 +47,9 @@ const TeacherHome = () => {
           animation: teacherContentEnter 380ms cubic-bezier(0.22, 1, 0.36, 1);
         }
       `}</style>
+      
 
-      <HomeLayout>
+      <HomeLayout onJoinRoom={(roomCode) => setJoinRoomCode(roomCode)}>
         <div className="absolute inset-0 z-20 flex w-full flex-col gap-8 px-5 pb-8 pt-8 md:flex-row md:gap-8">
           <nav className="flex shrink-0 flex-row justify-center gap-5 md:w-[80px] md:flex-col md:justify-start md:gap-6">
             {menuItems.map((item) => {
@@ -58,7 +61,10 @@ const TeacherHome = () => {
                   className="group flex w-[80px] flex-col items-center gap-1 text-center"
                 >
                   <Button
-                    onClick={() => setActiveMenu(item.id)}
+                    onClick={() => {
+                      setJoinRoomCode(null);
+                      setActiveMenu(item.id);
+                    }}
                     aria-pressed={isActive}
                     className={`!h-[35px] !min-h-0 !w-[56px] !rounded-full !p-0 !shadow-none ${
                       isActive
@@ -87,9 +93,13 @@ const TeacherHome = () => {
           </nav>
 
           <main className="min-w-0 flex-1">
-            {Content && (
+            {joinRoomCode ? (
+              <div className="h-full w-full teacher-content-enter">
+                <JoinRoom roomCode={joinRoomCode} onBack={() => setJoinRoomCode(null)} />
+              </div>
+            ) : Content && (
               <div key={activeMenu} className="teacher-content-enter h-full w-full">
-                <Content />
+                <Content onExit={() => setActiveMenu(null)} />
               </div>
             )}
           </main>

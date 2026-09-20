@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import JoinRoomInput from './JoinRoomInput';
 
-const Header = () => {
+const Header = ({ onJoinRoom }) => {
   const navigate = useNavigate();
 
   // Đọc thông tin user từ localStorage
@@ -27,7 +27,7 @@ const Header = () => {
     navigate('/login');
   };
 
-  const handleJoinRoom = (roomCode) => {
+  const _handleJoinRoom = (roomCode) => {
     console.log('Mã phòng:', roomCode);
   };
 
@@ -43,7 +43,7 @@ const Header = () => {
       />
 
       <div className="flex flex-1 justify-center">
-        <JoinRoomInput onJoin={handleJoinRoom} />
+        <JoinRoomInput onJoin={onJoinRoom} />
       </div>
 
       {/* ── User Info ── */}

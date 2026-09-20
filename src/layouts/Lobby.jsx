@@ -148,7 +148,7 @@ const Lobby = ({ children }) => {
 
       </div>
 
-      <div className="relative z-10 flex flex-1 flex-col justify-center rounded-[22px] p-5 sm:p-7">
+      <div className="relative z-10 flex flex-1 flex-col justify-center rounded-[22px] ">
         {children}
       </div>
 
