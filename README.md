@@ -1,16 +1,24 @@
-# React + Vite
+# CNPM_NC
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+## Cấu trúc project
 
-Currently, two official plugins are available:
+```text
+public/       Tài nguyên tĩnh và Service Worker của MSW
+src/
+  api/        Hàm gọi API
+  components/ Component dùng lại
+  contexts/   Auth state dùng chung
+  hooks/      Logic React, WebRTC và realtime
+  layouts/    Khung giao diện
+  mocks/      MSW và mock realtime socket
+  pages/      Các trang
+  routes/     Khai báo route và bảo vệ route
+  utils/      Tiện ích dùng chung
+```
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Chạy project
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+npm install
+npm run dev
+```

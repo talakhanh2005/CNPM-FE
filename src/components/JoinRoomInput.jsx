@@ -3,19 +3,25 @@ import Button from './Button';
 
 const JoinRoomInput = ({ onJoin }) => {
 	const [roomCode, setRoomCode] = useState('');
+	const [error, setError] = useState(false);
 
 	const handleSubmit = (event) => {
 		event.preventDefault();
 		const trimmedCode = roomCode.trim();
 
 		if (!trimmedCode) return;
+		if (!/^[a-z0-9]{8,12}$/i.test(trimmedCode)) {
+			setError(true);
+			return;
+		}
+		setError(false);
 		onJoin?.(trimmedCode);
 	};
 
 	return (
 		<form
 			onSubmit={handleSubmit}
-			className="flex h-[55px] w-full max-w-[435px] items-center rounded-[20px] bg-[#DDE3EA] px-4"
+			className={`flex h-[55px] w-full max-w-[435px] items-center rounded-[20px] px-4 ${error ? 'bg-[#ffe8e3] ring-1 ring-[#d85c43]' : 'bg-[#DDE3EA]'}`}
 		>
 			<img
 				src="/keyboard.png"
@@ -27,8 +33,8 @@ const JoinRoomInput = ({ onJoin }) => {
 			<input
 				type="text"
 				value={roomCode}
-				onChange={(event) => setRoomCode(event.target.value)}
-				placeholder="Nhập mã phòng"
+				onChange={(event) => { setRoomCode(event.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 12)); setError(false); }}
+				placeholder="Mã phòng (8–12 ký tự)"
 				aria-label="Mã phòng"
 				className="min-w-0 flex-1 bg-transparent font-['Roboto'] text-[20px] text-black/60 outline-none placeholder:text-black/60"
 			/>

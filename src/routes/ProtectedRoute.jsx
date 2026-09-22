@@ -1,19 +1,14 @@
 import { Navigate, Outlet } from 'react-router-dom';
+import useAuth from '../hooks/useAuth';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const token = localStorage.getItem('accessToken');
-  const userString = localStorage.getItem('user');
+  const { user, isLoading } = useAuth();
 
-  if (!token || !userString) {
-    return <Navigate to="/login" replace />;
+  if (isLoading) {
+    return <div className="flex min-h-screen items-center justify-center bg-[#fffaf3] text-[#6e5e53]">Đang kiểm tra phiên đăng nhập...</div>;
   }
 
-  let user = {};
-  try {
-    user = JSON.parse(userString);
-  } catch {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 

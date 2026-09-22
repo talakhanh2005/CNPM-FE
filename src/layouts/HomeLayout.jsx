@@ -14,7 +14,7 @@ const HomeLayout = ({ children, onJoinRoom }) => {
 
         
         <img
-          src="../public/backgroundhome.png"
+          src="/backgroundhome.png"
           alt="Illustration"
           className="w-[464px] h-[246px] object-cover mt-16"
         />

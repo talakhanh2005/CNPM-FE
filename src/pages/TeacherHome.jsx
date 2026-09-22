@@ -30,23 +30,6 @@ const TeacherHome = () => {
 
   return (
     <>
-      <style>{`
-        @keyframes teacherContentEnter {
-          from {
-            opacity: 0;
-            transform: scale(0.92);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        .teacher-content-enter {
-          transform-origin: center;
-          animation: teacherContentEnter 380ms cubic-bezier(0.22, 1, 0.36, 1);
-        }
-      `}</style>
       
 
       <HomeLayout onJoinRoom={(roomCode) => setJoinRoomCode(roomCode)}>
@@ -65,6 +48,7 @@ const TeacherHome = () => {
                       setJoinRoomCode(null);
                       setActiveMenu(item.id);
                     }}
+                    aria-label={item.label}
                     aria-pressed={isActive}
                     className={`!h-[35px] !min-h-0 !w-[56px] !rounded-full !p-0 !shadow-none ${
                       isActive
@@ -95,11 +79,11 @@ const TeacherHome = () => {
           <main className="min-w-0 flex-1">
             {joinRoomCode ? (
               <div className="h-full w-full teacher-content-enter">
-                <JoinRoom roomCode={joinRoomCode} onBack={() => setJoinRoomCode(null)} />
+                <JoinRoom roomCode={joinRoomCode} onClose={() => setJoinRoomCode(null)} />
               </div>
             ) : Content && (
               <div key={activeMenu} className="teacher-content-enter h-full w-full">
-                <Content onExit={() => setActiveMenu(null)} />
+                <Content onClose={() => setActiveMenu(null)} />
               </div>
             )}
           </main>

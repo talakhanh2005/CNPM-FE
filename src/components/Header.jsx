@@ -1,67 +1,49 @@
 import { useNavigate } from 'react-router-dom';
+import Button from './Button';
 import JoinRoomInput from './JoinRoomInput';
+import useAuth from '../hooks/useAuth';
 
 const Header = ({ onJoinRoom }) => {
   const navigate = useNavigate();
+  const { user, logout } = useAuth();
 
-  // Đọc thông tin user từ localStorage
-  const userString = localStorage.getItem('user');
-  let userData = {};
+  const displayRole = user?.role === 'teacher' ? 'Giáo viên' : 'Học sinh';
 
-  if (userString) {
-    try {
-      userData = JSON.parse(userString);
-    } catch {
-      localStorage.removeItem('user');
-    }
-  }
-  
-  // Chỉ lấy role, nếu không có mặc định là 'Student'. Chuyển đổi thành chữ viết hoa chữ cái đầu.
-  const rawRole = userData.role || 'student';
-  const displayRole = rawRole === 'teacher' ? 'Teacher' : 'Student';
-
-  // Chức năng đăng xuất khi bấm vào Avatar
-  const handleLogout = () => {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('user');
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
   };
 
-  const _handleJoinRoom = (roomCode) => {
-    console.log('Mã phòng:', roomCode);
+  const handleJoinRoom = (roomCode) => {
+    onJoinRoom?.(roomCode);
   };
 
   return (
     <header className="relative flex h-[70px] w-full items-center gap-4 bg-transparent px-5">
-      
-      {/* ── Logo ── */}
-      <img 
-        src="/logo.png" 
-        alt="Nhận diện cảm xúc" 
-        className="h-[60px] object-contain cursor-pointer"
+      <img
+        src="/logo.png"
+        alt="Nhận diện cảm xúc"
+        className="h-[60px] cursor-pointer object-contain"
         onClick={() => navigate('/')}
       />
 
       <div className="flex flex-1 justify-center">
-        <JoinRoomInput onJoin={onJoinRoom} />
+        <JoinRoomInput onJoin={handleJoinRoom} />
       </div>
 
-      {/* ── User Info ── */}
       <div className="flex items-center gap-[10px]">
-        {/* Chỉ hiển thị Role ở đây */}
-        <span className="text-center font-['Roboto'] text-[20px] font-medium text-black">
-          {displayRole}
-        </span>
-        
-        <img 
-          src="/avatar.png" 
-          alt="Avatar" 
-          className="w-[45px] h-[45px] rounded-full object-cover bg-[#ccc] cursor-pointer hover:ring-2 hover:ring-white/50 transition-all"
+        <span className="text-center text-[20px] font-medium text-black">{displayRole}</span>
+        <Button
+          type="text"
+          htmlType="button"
           onClick={handleLogout}
           title="Đăng xuất"
-        />
+          aria-label="Đăng xuất"
+          className="!h-[45px] !w-[45px] !rounded-full !border-0 !bg-transparent !p-0 !shadow-none hover:!ring-2 hover:!ring-white/50"
+        >
+          <img src="/avatar.png" alt="Avatar" className="h-[45px] w-[45px] rounded-full bg-[#ccc] object-cover" />
+        </Button>
       </div>
-      
     </header>
   );
 };

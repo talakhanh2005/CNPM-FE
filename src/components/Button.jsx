@@ -1,10 +1,10 @@
 // File: src/components/Button.jsx
 import { Button as AntButton } from 'antd';
 
-const Button = ({ children, className = '', ...props }) => {
+const Button = ({ children, className = '', type = 'primary', ...props }) => {
   return (
     <AntButton
-      type="primary"
+      type={type}
       className={`
         !border-0
         hover:!brightness-90

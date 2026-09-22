@@ -5,19 +5,16 @@ import Register from '../pages/Register';
 import TeacherHome from '../pages/TeacherHome';
 import StudentHome from '../pages/StudentHome';
 import Meeting from '../pages/Meeting';
+import useAuth from '../hooks/useAuth';
 
 const HomeRedirect = () => {
-  const userString = localStorage.getItem('user');
-  if (!userString) return <Navigate to="/login" replace />;
+  const { user, isLoading } = useAuth();
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-[#fffaf3] text-[#6e5e53]">Đang tải...</div>;
+  if (!user) return <Navigate to="/login" replace />;
 
-  try {
-    const user = JSON.parse(userString);
-    return user.role === 'teacher' 
-      ? <Navigate to="/teacher" replace /> 
-      : <Navigate to="/student" replace />;
-  } catch {
-    return <Navigate to="/login" replace />;
-  }
+  return user.role === 'teacher'
+    ? <Navigate to="/teacher" replace />
+    : <Navigate to="/student" replace />;
 };
 
 const AppRoutes = () => {
