@@ -5,11 +5,12 @@ import Register from '../pages/Register';
 import TeacherHome from '../pages/TeacherHome';
 import StudentHome from '../pages/StudentHome';
 import Meeting from '../pages/Meeting';
+import EmotionReport from '../pages/EmotionReport';
 import useAuth from '../hooks/useAuth';
 
 const HomeRedirect = () => {
   const { user, isLoading } = useAuth();
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-[#fffaf3] text-[#6e5e53]">Đang tải...</div>;
+  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-surface text-on-surface">Đang tải...</div>;
   if (!user) return <Navigate to="/login" replace />;
 
   return user.role === 'teacher'
@@ -26,6 +27,8 @@ const AppRoutes = () => {
 
       <Route element={<ProtectedRoute />}>
         <Route path="/meeting/:roomId" element={<Meeting />} />
+        <Route path="/bao-cao-cam-xuc" element={<EmotionReport />} />
+        <Route path="/report" element={<EmotionReport />} />
       </Route>
 
       <Route element={<ProtectedRoute allowedRoles={['teacher']} />}>
