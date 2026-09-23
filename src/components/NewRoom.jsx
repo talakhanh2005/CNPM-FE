@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Lobby from '../layouts/Lobby';
-import Button from './Button';
 import { createRoom } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { retainMediaStream } from '../utils/mediaSession';
@@ -19,7 +18,9 @@ const NewRoom = ({ onClose }) => {
   const [isExiting, setIsExiting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+
   const handleClose = () => setIsExiting(true);
+
   const handleCreateRoom = async () => {
     try {
       setIsCreating(true);
@@ -47,52 +48,102 @@ const NewRoom = ({ onClose }) => {
   };
 
   return (
-    <div onAnimationEnd={isExiting ? onClose : undefined} className={`${isExiting ? 'new-room-exit ' : ''}h-full`}>
-      <Lobby onMediaChange={setLobbyMedia}>
-        <div className="grid h-full grid-cols-2 gap-5 [&>button]:!mt-0">
-          <fieldset className="col-span-2 space-y-6">
-            <legend className="mb-3 text-[15px] font-bold text-[#4A3B32]">Quản lý người tham gia</legend>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div
+      onAnimationEnd={isExiting ? onClose : undefined}
+      className={`${isExiting ? 'new-room-exit ' : ''}h-full`}
+    >
+      <Lobby
+        onMediaChange={setLobbyMedia}
+        roomTitle="Khởi tạo phòng học mới"
+      >
+        <div className="flex flex-col gap-4 bg-surface-container-lowest border-[3px] border-pure-black p-5 shadow-[4px_4px_0px_#000000]">
+          {/* Participant Mode Fieldset */}
+          <fieldset className="space-y-3">
+            <legend className="text-label-md font-bold text-on-surface uppercase mb-2">
+              Quản lý người tham gia
+            </legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {participantOptions.map((option) => {
                 const isSelected = participantMode === option.value;
-
                 return (
                   <label
                     key={option.value}
-                    className={`flex cursor-pointer items-start gap-3 rounded-[16px] border p-3.5 transition-all ${isSelected ? 'border-[#1E7DFF] bg-[#EFF7FF] shadow-[0_8px_20px_rgba(30,125,255,0.1)]' : 'border-[#E8D8C3] bg-[#FFFEF8] hover:border-[#9CCBFF]'}`}
+                    className={`flex cursor-pointer items-start gap-3 border-[3px] border-pure-black p-3 transition-all ${
+                      isSelected
+                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
+                        : 'bg-surface hover:bg-surface-container'
+                    }`}
                   >
-                    <input type="radio" name="participantMode" value={option.value} checked={isSelected} onChange={(event) => setParticipantMode(event.target.value)} className="mt-1 h-4 w-4 accent-[#1E7DFF]" />
-                    <span className="min-w-0">
-                      <span className="block text-[14px] font-bold text-[#4A3B32]">{option.title}</span>
-                      <span className="mt-1 block text-[12px] leading-5 text-[#8A786B]">{option.description}</span>
-                    </span>
+                    <input
+                      type="radio"
+                      name="participantMode"
+                      value={option.value}
+                      checked={isSelected}
+                      onChange={(e) => setParticipantMode(e.target.value)}
+                      className="mt-1 h-4 w-4 accent-pure-black cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="block text-label-md font-bold text-on-surface">
+                        {option.title}
+                      </span>
+                      <span className="text-body-sm text-on-surface-variant leading-tight block mt-0.5">
+                        {option.description}
+                      </span>
+                    </div>
                   </label>
                 );
               })}
             </div>
           </fieldset>
 
-          <div className="col-span-2 flex items-center justify-between gap-4 rounded-[16px] border border-[#E8D8C3] bg-[#FFFEF8] p-4">
+          {/* Emotion Recognition Switch */}
+          <div className="flex items-center justify-between gap-4 border-[3px] border-pure-black bg-surface p-3 shadow-[2px_2px_0px_#000000]">
             <div>
-              <p className="m-0 text-[15px] font-bold text-[#4A3B32]">Nhận diện cảm xúc</p>
-              <p className="m-0 mt-1 text-[12px] leading-5 text-[#8A786B]">Phân tích cảm xúc của người tham gia trong buổi học.</p>
+              <p className="text-label-md font-bold text-on-surface">AI Cảm xúc thời gian thực</p>
+              <p className="text-body-sm text-on-surface-variant">
+                Tự động nhận diện mức độ tập trung học sinh trong lớp.
+              </p>
             </div>
-            <Button
-              type="default"
-              htmlType="button"
+            <button
+              type="button"
               role="switch"
               aria-checked={emotionRecognition}
-              aria-label="Bật hoặc tắt nhận diện cảm xúc"
-              onClick={() => setEmotionRecognition((enabled) => !enabled)}
-              className={`!relative !flex !h-7 !w-12 !shrink-0 !items-start !justify-start !rounded-full !border-0 !p-1 !shadow-none ${emotionRecognition ? '!bg-[#1E7DFF]' : '!bg-[#C9C0B8]'}`}
+              onClick={() => setEmotionRecognition((prev) => !prev)}
+              className={`w-14 h-8 border-[2px] border-pure-black p-0.5 flex items-center transition-colors cursor-pointer ${
+                emotionRecognition ? 'bg-bright-yellow justify-end' : 'bg-surface-variant justify-start'
+              }`}
             >
-              <span className={`absolute left-1 top-1 block h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${emotionRecognition ? 'translate-x-5' : 'translate-x-0'}`} />
-            </Button>
+              <span className="w-6 h-6 bg-pure-black border border-pure-black shadow-xs block" />
+            </button>
           </div>
 
-          {error && <p className="col-span-2 m-0 rounded-xl bg-[#fff0ed] px-3 py-2 text-center text-sm text-[#b33b25]">{error}</p>}
-          <Button type="primary" htmlType="button" loading={isCreating} disabled={isCreating} onClick={handleCreateRoom} className="!h-[50px] !w-full !rounded-full !px-6 !text-[16px] !font-bold">Tạo phòng</Button>
-          <Button type="default" htmlType="button" onClick={handleClose} className="!h-[50px] !w-full !rounded-full !border !border-[#000000] !bg-white !px-6 !text-[16px] !font-bold !text-black !shadow-none hover:!bg-[#F8F8F8]">Thoát</Button>
+          {/* Error Banner */}
+          {error && (
+            <p className="p-2.5 bg-tertiary-container border-[2px] border-pure-black text-on-tertiary-container font-bold text-body-sm text-center">
+              {error}
+            </p>
+          )}
+
+          {/* Action Buttons */}
+          <div className="flex flex-col gap-2.5 pt-2">
+            <button
+              type="button"
+              disabled={isCreating}
+              onClick={handleCreateRoom}
+              className="w-full py-4 bg-bright-yellow text-pure-black border-[3px] border-pure-black font-headline font-bold text-headline-sm uppercase tracking-wide shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              <span>{isCreating ? 'Đang khởi tạo...' : 'Tạo phòng học ngay'}</span>
+              <span className="material-symbols-outlined text-2xl font-bold">arrow_forward</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleClose}
+              className="w-full py-2.5 bg-surface text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer"
+            >
+              Thoát
+            </button>
+          </div>
         </div>
       </Lobby>
     </div>
