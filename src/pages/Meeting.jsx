@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
-import Button from '../components/Button';
 import CameraGrid from '../components/CameraGrid';
 import MeetingControls from '../components/MeetingControls';
 import MeetingDialog from '../layouts/MeetingDialog';
@@ -46,7 +45,24 @@ const Meeting = () => {
   const [dialogPanel, setDialogPanel] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [sessionSeconds, setSessionSeconds] = useState(125);
   const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
+
+  const isTeacher = user?.role === 'teacher';
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionSeconds((sec) => sec + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTimer = (seconds) => {
+    const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${hrs}:${mins}:${secs}`;
+  };
 
   useEffect(() => {
     const roomFromNavigation = navigationState?.room;
@@ -100,7 +116,7 @@ const Meeting = () => {
           const disabledMedia = { ...mediaStateRef.current, camera: false, mic: false };
           mediaStateRef.current = disabledMedia;
           setMediaState(disabledMedia);
-          setMediaError('Không thể truy cập camera hoặc micro. Bạn vẫn có thể tham gia bằng avatar.');
+          setMediaError('Không thể truy cập camera hoặc micro. Bạn vẫn có thể tham gia lớp học.');
         }
       })
       .finally(() => { if (active) setMediaLoading(false); });
@@ -230,7 +246,7 @@ const Meeting = () => {
   };
 
   const handleLeave = async () => {
-    if (!room || !window.confirm('Bạn có muốn rời khỏi phòng không?')) return;
+    if (!room || !window.confirm('Bạn có muốn rời khỏi phòng học không?')) return;
     try {
       setLeaving(true);
       hasLeftRoomRef.current = true;
@@ -258,27 +274,146 @@ const Meeting = () => {
   ];
 
   if (roomLoading && !room) {
-    return <main className="flex min-h-screen items-center justify-center bg-[#17181c] px-6 text-center font-['Roboto'] text-white"><p className="m-0 text-lg">Đang tải phòng...</p></main>;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
+        <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000]">
+          <span className="material-symbols-outlined text-[48px] text-bright-yellow animate-spin">
+            progress_activity
+          </span>
+          <p className="mt-4 font-headline font-bold text-headline-sm">Đang tải phòng học...</p>
+        </div>
+      </main>
+    );
   }
 
   if (activeRoomError && !room) {
-    return <main className="flex min-h-screen items-center justify-center bg-[#17181c] px-6 text-center font-['Roboto'] text-white"><div><p className="m-0 text-lg">{activeRoomError}</p><Button type="default" htmlType="button" onClick={() => navigate('/')} className="mt-5 !rounded-full !bg-white !px-6 !text-black">Về trang chủ</Button></div></main>;
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
+        <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000] max-w-md">
+          <span className="material-symbols-outlined text-[48px] text-tertiary">error</span>
+          <p className="mt-4 font-headline font-bold text-headline-sm">{activeRoomError}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="mt-6 px-6 py-2.5 bg-bright-yellow font-bold border-[2px] border-pure-black shadow-[3px_3px_0px_#000000]"
+          >
+            Về trang chủ
+          </button>
+        </div>
+      </main>
+    );
   }
 
   return (
-    <main className="relative flex min-h-screen w-full flex-col overflow-hidden bg-black font-['Roboto'] text-[#f2f2f7]">
-      <header className="flex h-14 shrink-0 items-center px-4 sm:px-6">
-        <p className="m-0 truncate text-sm font-semibold text-[#9da1aa] sm:text-base">Mã phòng <span className="font-bold text-white">{room?.code || roomId}</span></p>
+    <main className="relative flex h-screen w-full flex-col overflow-hidden bg-surface font-body text-on-surface">
+      {/* Top Header Control Bar */}
+      <header className="w-full bg-off-white border-b-[3px] border-pure-black px-4 sm:px-gutter py-2.5 sm:py-3 flex items-center justify-between shadow-[4px_4px_0px_#000000] shrink-0 z-20">
+        <div className="flex items-center gap-2 sm:gap-space-md">
+          <div className="bg-primary-container border-[2px] sm:border-[3px] border-pure-black px-2.5 sm:px-space-md py-1 font-headline font-bold text-label-md text-on-primary-container shadow-[2px_2px_0px_#000000] flex items-center gap-1 sm:gap-space-xs">
+            <span className="material-symbols-outlined text-[18px]">vpn_key</span>
+            #{room?.code || roomId}
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5 bg-surface-container border-[2px] border-pure-black px-3 py-1 font-mono text-label-md text-on-surface shadow-[2px_2px_0px_#000000]">
+            <span className="material-symbols-outlined text-[18px]">timer</span>
+            <span>{formatTimer(sessionSeconds)}</span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+            <span>AI Cảm xúc: Đang bật</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-space-md">
+          <div className="hidden lg:flex items-center gap-2 bg-surface-container-low border-[2px] border-pure-black px-3 py-1 font-bold text-label-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{isTeacher ? 'Chủ tọa (Giáo viên)' : 'Học viên'}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleLeave}
+            disabled={leaving}
+            className="px-3.5 py-1.5 bg-vivid-red text-on-error border-[2px] border-pure-black font-headline font-bold text-label-sm uppercase shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[18px]">logout</span>
+            <span>Thoát</span>
+          </button>
+        </div>
       </header>
 
-      <section className={`relative flex min-h-0 flex-1 items-center justify-center px-4 pb-4 transition-[padding] duration-300 sm:px-8 sm:pb-5 ${dialogVisible ? 'lg:pr-[408px]' : 'lg:pr-8'}`}>
-        <CameraGrid participants={participants} speakerOn={mediaState.speaker} speakerDeviceId={speakerDeviceId} />
-        {mediaLoading && <div className="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-black/55 px-4 py-2 text-xs text-white/80">Đang bật camera và micro...</div>}
-        {(mediaError || activeRoomError) && !mediaLoading && <div className="absolute bottom-5 left-1/2 max-w-[calc(100%-32px)] -translate-x-1/2 rounded-xl bg-[#7a241f]/90 px-4 py-2 text-center text-xs text-white">{mediaError || activeRoomError}</div>}
-      </section>
+      {/* Main Workspace Area */}
+      <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* If Teacher: Show live class stats summary row */}
+        {isTeacher && (
+          <div className="bg-surface-container-low border-b-[2px] border-pure-black px-4 py-2 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-label-sm">
+            <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+              <span className="text-on-surface-variant font-mono">Học sinh:</span>
+              <span className="font-bold text-secondary">{participants.length} bạn</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+              <span className="text-on-surface-variant font-mono">Tập trung TB:</span>
+              <span className="font-bold text-emerald-600">91%</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+              <span className="text-on-surface-variant font-mono">Cần hỗ trợ:</span>
+              <span className="font-bold text-tertiary">0 em</span>
+            </div>
+            <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+              <span className="text-on-surface-variant font-mono">AI Realtime:</span>
+              <span className="font-bold text-royal-blue uppercase">{connectionStatus}</span>
+            </div>
+          </div>
+        )}
 
-      <MeetingDialog activePanel={dialogPanel} isVisible={dialogVisible} connectionStatus={connectionStatus} userRole={user?.role} onClose={() => setDialogVisible(false)} onAnimationEnd={() => { if (!dialogVisible) setDialogPanel(null); }} />
-      <MeetingControls mediaState={mediaState} activeDialog={dialogVisible ? dialogPanel : null} onMediaToggle={toggleMedia} onDialogToggle={toggleDialog} onLeave={handleLeave} leaving={leaving} />
+        {/* Video Stage Area */}
+        <section
+          className={`relative flex min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 transition-[padding] duration-300 ${
+            dialogVisible ? 'lg:pr-[390px]' : ''
+          }`}
+        >
+          <CameraGrid
+            participants={participants}
+            speakerOn={mediaState.speaker}
+            speakerDeviceId={speakerDeviceId}
+          />
+
+          {mediaLoading && (
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 z-20 border-[2px] border-pure-black bg-bright-yellow px-4 py-1.5 text-label-sm font-bold text-pure-black shadow-[3px_3px_0px_#000000]">
+              Đang chuẩn bị camera và micro...
+            </div>
+          )}
+
+          {(mediaError || activeRoomError) && !mediaLoading && (
+            <div className="absolute bottom-5 left-1/2 max-w-[calc(100%-32px)] -translate-x-1/2 z-20 border-[3px] border-pure-black bg-tertiary-container px-4 py-2 text-center text-body-sm font-bold text-on-tertiary-container shadow-[4px_4px_0px_#000000]">
+              {mediaError || activeRoomError}
+            </div>
+          )}
+        </section>
+
+        {/* Dialog Panel (Chat / Emotion / Settings) */}
+        <MeetingDialog
+          activePanel={dialogPanel}
+          isVisible={dialogVisible}
+          connectionStatus={connectionStatus}
+          userRole={user?.role}
+          onClose={() => setDialogVisible(false)}
+          onAnimationEnd={() => {
+            if (!dialogVisible) setDialogPanel(null);
+          }}
+        />
+      </div>
+
+      {/* Bottom Meeting Control Bar */}
+      <MeetingControls
+        mediaState={mediaState}
+        activeDialog={dialogVisible ? dialogPanel : null}
+        onMediaToggle={toggleMedia}
+        onDialogToggle={toggleDialog}
+        onLeave={handleLeave}
+        leaving={leaving}
+      />
     </main>
   );
 };
