@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import useAuth from '../hooks/useAuth';
 
 const DashboardLayout = ({
@@ -10,6 +10,7 @@ const DashboardLayout = ({
 }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [quickRoomCode, setQuickRoomCode] = useState('');
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -45,14 +46,14 @@ const DashboardLayout = ({
       ];
 
   const handleNavClick = (item) => {
-    if (item.path === '/bao-cao-cam-xuc') {
-      navigate('/bao-cao-cam-xuc');
+    setMobileMenuOpen(false);
+    if (location.pathname !== item.path) {
+      navigate(item.path, { state: { tab: item.id } });
       return;
     }
     if (onTabChange) {
       onTabChange(item.id);
     }
-    setMobileMenuOpen(false);
   };
 
   return (
@@ -71,9 +72,20 @@ const DashboardLayout = ({
               className="h-8 w-auto object-contain"
               src="/bauhaus-logo.png"
             />
-            <span className="text-headline-sm font-headline font-bold uppercase tracking-tight text-on-surface">
-              Neo-Learn AI
-            </span>
+            <div className="flex flex-col">
+              <span className="text-headline-sm font-headline font-bold uppercase tracking-tight text-on-surface leading-none">
+                Neo-Learn AI
+              </span>
+              <span
+                className={`text-[10px] font-mono font-bold tracking-widest uppercase mt-1 px-1.5 py-0.5 border border-pure-black w-max ${
+                  isTeacher
+                    ? 'bg-royal-blue text-white shadow-[1px_1px_0px_#000000]'
+                    : 'bg-bright-yellow text-pure-black shadow-[1px_1px_0px_#000000]'
+                }`}
+              >
+                {isTeacher ? '• Giảng dạy' : '• Học tập'}
+              </span>
+            </div>
           </Link>
           <button
             type="button"
@@ -95,7 +107,9 @@ const DashboardLayout = ({
                 onClick={() => handleNavClick(item)}
                 className={`flex items-center px-space-md py-space-sm rounded-none text-body-md transition-all text-left cursor-pointer ${
                   isActive
-                    ? 'bg-primary-container text-on-primary-container font-bold border-[3px] border-pure-black shadow-[2px_2px_0px_#000000]'
+                    ? isTeacher
+                      ? 'bg-royal-blue text-white font-bold border-[3px] border-pure-black shadow-[3px_3px_0px_#000000]'
+                      : 'bg-bright-yellow text-pure-black font-bold border-[3px] border-pure-black shadow-[3px_3px_0px_#000000]'
                     : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                 }`}
               >
@@ -109,14 +123,24 @@ const DashboardLayout = ({
         {/* Bottom User Info & Logout */}
         <div className="px-space-md pt-space-md border-t-[3px] border-pure-black mt-auto flex flex-col gap-space-sm">
           <div className="flex items-center gap-space-sm p-space-xs bg-surface-container-low border-[2px] border-pure-black">
-            <div className="w-9 h-9 rounded-full bg-bright-yellow border-[2px] border-pure-black flex items-center justify-center font-bold text-pure-black uppercase">
+            <div
+              className={`w-9 h-9 rounded-full border-[2px] border-pure-black flex items-center justify-center font-bold uppercase shadow-[1px_1px_0px_#000000] ${
+                isTeacher ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'
+              }`}
+            >
               {user?.username?.[0] || 'U'}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-label-md font-bold text-on-surface truncate">
                 {user?.username || 'Người dùng'}
               </p>
-              <span className="text-label-sm text-on-surface-variant uppercase font-mono">
+              <span
+                className={`text-[11px] font-bold uppercase font-mono px-1.5 py-0.5 border border-pure-black inline-block mt-0.5 ${
+                  isTeacher
+                    ? 'bg-secondary-fixed text-on-secondary-fixed-variant'
+                    : 'bg-primary-fixed text-on-primary-fixed'
+                }`}
+              >
                 {isTeacher ? 'Giáo viên' : 'Học sinh'}
               </span>
             </div>
@@ -155,37 +179,35 @@ const DashboardLayout = ({
             <button
               type="button"
               onClick={() => setShowJoinModal(true)}
-              className="px-3 py-1.5 bg-surface-container-lowest text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-bright-yellow transition-all flex items-center gap-1.5 cursor-pointer"
+              className="px-3 py-1.5 bg-surface-container-lowest text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container-high transition-all flex items-center gap-1.5 cursor-pointer"
             >
               <span className="material-symbols-outlined text-[18px]">keyboard</span>
               <span className="hidden sm:inline">Nhập mã phòng</span>
             </button>
 
             {/* Role indicator */}
-            <div className="flex items-center bg-surface-container border-[3px] border-pure-black p-0.5 shadow-[2px_2px_0px_#000000]">
-              <span
-                className={`px-3 py-1 text-label-sm font-bold border border-pure-black ${
-                  isTeacher ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
-                }`}
-              >
-                Giáo viên
+            <div
+              className={`flex items-center gap-1.5 px-3 py-1.5 border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] uppercase tracking-wide ${
+                isTeacher
+                  ? 'bg-royal-blue text-white'
+                  : 'bg-bright-yellow text-pure-black'
+              }`}
+            >
+              <span className="material-symbols-outlined text-[18px]">
+                {isTeacher ? 'co_present' : 'school'}
               </span>
-              <span
-                className={`px-3 py-1 text-label-sm font-bold border border-pure-black ${
-                  !isTeacher ? 'bg-primary text-on-primary' : 'bg-transparent text-on-surface-variant'
-                }`}
-              >
-                Học sinh
-              </span>
+              <span>{isTeacher ? 'Giáo viên' : 'Học sinh'}</span>
             </div>
 
             {/* Profile Avatar */}
             <div
               onClick={handleLogout}
               title="Nhấn để đăng xuất"
-              className="w-10 h-10 rounded-full bg-bright-yellow border-[3px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center justify-center cursor-pointer hover:opacity-90 font-bold"
+              className={`w-10 h-10 rounded-full border-[3px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center justify-center cursor-pointer hover:opacity-90 font-bold transition-transform active:translate-x-0.5 active:translate-y-0.5 ${
+                isTeacher ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'
+              }`}
             >
-              <span className="material-symbols-outlined text-pure-black text-[22px]">person</span>
+              <span className="material-symbols-outlined text-[22px]">person</span>
             </div>
           </div>
         </header>
