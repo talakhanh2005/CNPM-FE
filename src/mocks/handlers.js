@@ -1,10 +1,69 @@
 import { http, HttpResponse } from 'msw';
-import { isParticipantMode, isUserRole } from './contracts';
+import { isParticipantMode, isUserRole, isAnalysisMode } from './contracts';
 
 const STORE_KEY = 'cnpm-msw-store';
 let users = new Map();
 let sessions = new Map();
 let rooms = new Map();
+
+const sampleRoomsSeed = [
+  {
+    id: 'room_hist_01',
+    name: 'Toán 12A1 - Ôn thi đại học (Giải tích nâng cao)',
+    code: 'MATH12A1',
+    hostId: 'teacher_sample',
+    status: 'closed',
+    participantMode: 'free',
+    emotionRecognition: true,
+    analysisMode: 'batch',
+    recordingStatus: 'completed',
+    durationMinutes: 90,
+    createdAt: new Date(Date.now() - 3600 * 1000 * 24).toISOString(),
+    participants: [{ id: 'user_st1', username: 'Nguyễn An', role: 'student', status: 'left' }],
+  },
+  {
+    id: 'room_hist_02',
+    name: 'Vật lý 11B2 - Điện từ trường & Cảm ứng',
+    code: 'PHYS11B2',
+    hostId: 'teacher_sample',
+    status: 'closed',
+    participantMode: 'free',
+    emotionRecognition: true,
+    analysisMode: 'realtime',
+    recordingStatus: 'none',
+    durationMinutes: 45,
+    createdAt: new Date(Date.now() - 3600 * 1000 * 48).toISOString(),
+    participants: [{ id: 'user_st2', username: 'Trần Bình', role: 'student', status: 'left' }],
+  },
+  {
+    id: 'room_hist_03',
+    name: 'Hóa học 10C3 - Phản ứng Oxi hóa khử',
+    code: 'CHEM10C3',
+    hostId: 'teacher_sample',
+    status: 'closed',
+    participantMode: 'approval',
+    emotionRecognition: true,
+    analysisMode: 'batch',
+    recordingStatus: 'completed',
+    durationMinutes: 60,
+    createdAt: new Date(Date.now() - 3600 * 1000 * 72).toISOString(),
+    participants: [{ id: 'user_st3', username: 'Lê Hoàng', role: 'student', status: 'left' }],
+  },
+  {
+    id: 'room_hist_04',
+    name: 'Hình học 12A2 - Phương pháp tọa độ không gian Oxyz',
+    code: 'GEOM12A2',
+    hostId: 'teacher_sample',
+    status: 'closed',
+    participantMode: 'free',
+    emotionRecognition: true,
+    analysisMode: 'realtime',
+    recordingStatus: 'none',
+    durationMinutes: 90,
+    createdAt: new Date(Date.now() - 3600 * 1000 * 96).toISOString(),
+    participants: [{ id: 'user_st4', username: 'Phạm Mai', role: 'student', status: 'left' }],
+  },
+];
 
 const getStorage = () => globalThis.localStorage;
 
@@ -17,10 +76,15 @@ const loadState = () => {
     users = new Map((state.users || []).map((user) => [user.id, user]));
     sessions = new Map(state.sessions || []);
     rooms = new Map((state.rooms || []).map((room) => [room.id, room]));
+    if (rooms.size === 0) {
+      sampleRoomsSeed.forEach((r) => rooms.set(r.id, r));
+      saveState();
+    }
   } catch {
     users = new Map();
     sessions = new Map();
     rooms = new Map();
+    sampleRoomsSeed.forEach((r) => rooms.set(r.id, r));
   }
 };
 
@@ -62,13 +126,17 @@ const publicUser = (user) => ({
 
 const toRoom = (room) => ({
   id: room.id,
+  name: room.name || 'Lớp học trực tuyến',
   code: room.code,
   hostId: room.hostId,
   status: room.status,
   participantMode: room.participantMode,
-  emotionRecognition: room.emotionRecognition,
+  emotionRecognition: room.emotionRecognition ?? true,
+  analysisMode: room.analysisMode || (room.emotionRecognition === false ? 'batch' : 'realtime'),
+  recordingStatus: room.recordingStatus || 'none',
+  durationMinutes: room.durationMinutes || 45,
   createdAt: room.createdAt,
-  participants: room.participants.map((participant) => ({ ...participant })),
+  participants: (room.participants || []).map((participant) => ({ ...participant })),
 });
 
 const getCurrentUser = (request) => {
@@ -125,25 +193,74 @@ export const handlers = [
     if (user.role !== 'teacher') return fail('Chỉ giáo viên có thể tạo phòng.', 403, 'FORBIDDEN');
 
     const body = await request.json();
-    const { participantMode, emotionRecognition } = body || {};
-    if (!isParticipantMode(participantMode) || typeof emotionRecognition !== 'boolean') {
+    const { name, participantMode, emotionRecognition, analysisMode } = body || {};
+    if (!isParticipantMode(participantMode)) {
       return fail('Thiết lập phòng không hợp lệ.', 422, 'VALIDATION_ERROR');
     }
 
     const createdAt = now();
+    const mode = isAnalysisMode(analysisMode) ? analysisMode : (emotionRecognition ? 'realtime' : 'batch');
     const room = {
       id: id('room'),
+      name: typeof name === 'string' && name.trim() ? name.trim() : 'Lớp học trực tuyến',
       code: nextRoomCode(),
       hostId: user.id,
       status: 'active',
       participantMode,
-      emotionRecognition,
+      emotionRecognition: mode === 'realtime',
+      analysisMode: mode,
+      recordingStatus: 'none',
+      durationMinutes: 45,
       createdAt,
       participants: [{ ...publicUser(user), status: 'joined', joinedAt: createdAt, leftAt: null }],
     };
     rooms.set(room.id, room);
     saveState();
     return ok(toRoom(room), 'Tạo phòng thành công.');
+  })),
+
+  http.get('/api/meetings/history', ({ request }) => withState(() => {
+    const user = getCurrentUser(request);
+    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
+
+    const historyList = [...rooms.values()]
+      .filter((r) => r.hostId === user.id || r.hostId === 'teacher_sample')
+      .map(toRoom)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    return ok(historyList);
+  })),
+
+  http.post('/api/meetings/:roomId/recording', async ({ request, params }) => withState(async () => {
+    const user = getCurrentUser(request);
+    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
+    const room = rooms.get(params.roomId);
+    if (!room) return fail('Không tìm thấy phòng.', 404, 'ROOM_NOT_FOUND');
+
+    let durationSeconds = 60;
+    try {
+      const body = await request.json();
+      if (body?.durationSeconds) durationSeconds = body.durationSeconds;
+    } catch {
+      // payload may be empty or form
+    }
+
+    room.recordingStatus = 'processing';
+    room.durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
+    room.status = 'closed';
+    saveState();
+
+    setTimeout(() => {
+      withState(() => {
+        const target = rooms.get(params.roomId);
+        if (target) {
+          target.recordingStatus = 'completed';
+          saveState();
+        }
+      });
+    }, 4000);
+
+    return ok(toRoom(room), 'Bản ghi đã lưu, AI đang phân tích trong nền.');
   })),
 
   http.get('/api/rooms/:roomId', ({ request, params }) => withState(() => {
