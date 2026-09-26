@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 
 const timelineData = [
@@ -59,7 +60,17 @@ const studentsReport = [
 ];
 
 const EmotionReport = () => {
+  const location = useLocation();
+  const meeting = location.state?.meeting;
   const [search, setSearch] = useState('');
+
+  const className = meeting?.name || 'Toán 12A1 - Ôn thi đại học';
+  const roomCode = meeting?.code || 'ML-8842';
+  const isBatch = meeting ? meeting.analysisMode === 'batch' : true;
+  const duration = meeting?.durationMinutes ? `${meeting.durationMinutes} phút` : '90 phút';
+  const createdDate = meeting?.createdAt
+    ? new Date(meeting.createdAt).toLocaleDateString('vi-VN')
+    : '24/05/2024';
 
   const filteredStudents = studentsReport.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase())
@@ -71,21 +82,32 @@ const EmotionReport = () => {
         {/* Header Session Info */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-xl border-b-[3px] border-pure-black pb-space-lg">
           <div>
-            <div className="flex items-center gap-space-sm mb-space-xs">
+            <div className="flex items-center gap-space-sm mb-space-xs flex-wrap">
               <span className="px-2.5 py-0.5 bg-primary text-on-primary text-label-sm font-bold uppercase border border-pure-black">
                 Báo cáo sau buổi học
               </span>
+              {isBatch ? (
+                <span className="px-2.5 py-0.5 bg-royal-blue text-white text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]">
+                  <span className="material-symbols-outlined text-[14px]">psychology</span>
+                  AI đánh giá sau (Video Recording)
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 bg-bright-yellow text-pure-black text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]">
+                  <span className="material-symbols-outlined text-[14px]">speed</span>
+                  Phân tích Realtime
+                </span>
+              )}
               <span className="text-body-sm text-on-surface-variant font-mono font-bold">
-                Ngày 24/05/2024
+                Ngày {createdDate}
               </span>
             </div>
             <h1 className="text-headline-lg font-headline font-bold text-on-surface tracking-tight">
-              Toán 12A1 - Ôn thi đại học
+              {className}
             </h1>
             <p className="text-body-md text-on-surface-variant mt-1">
-              Thời lượng: <strong className="text-on-surface font-bold">90 phút</strong> | Phòng học:{' '}
-              <strong className="text-on-surface font-mono font-bold">#ML-8842</strong> | Giáo viên:{' '}
-              <strong className="text-on-surface font-bold">Thầy Nguyễn Văn A</strong>
+              Thời lượng: <strong className="text-on-surface font-bold">{duration}</strong> | Phòng học:{' '}
+              <strong className="text-on-surface font-mono font-bold">#{roomCode}</strong> | Giáo viên:{' '}
+              <strong className="text-on-surface font-bold">Thầy Hoàng (Giáo viên)</strong>
             </p>
           </div>
 
