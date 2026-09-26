@@ -10,10 +10,24 @@ const participantOptions = [
   { value: 'approval', title: 'Đợi duyệt', description: 'Giáo viên duyệt trước khi vào phòng.' },
 ];
 
+const analysisOptions = [
+  {
+    value: 'realtime',
+    title: '⚡ Realtime (Thời gian thực)',
+    description: 'AI theo dõi cảm xúc và độ tập trung trực tiếp của học sinh trong buổi dạy.',
+  },
+  {
+    value: 'batch',
+    title: '⏳ Trả kết quả sau (AI đánh giá sau)',
+    description: 'Ghi hình buổi học; AI phân tích sau khi kết thúc và lưu báo cáo vào Lịch sử.',
+  },
+];
+
 const NewRoom = ({ onClose }) => {
   const navigate = useNavigate();
+  const [roomName, setRoomName] = useState('Toán 12A1 - Giải tích');
   const [participantMode, setParticipantMode] = useState('free');
-  const [emotionRecognition, setEmotionRecognition] = useState(true);
+  const [analysisMode, setAnalysisMode] = useState('batch');
   const [lobbyMedia, setLobbyMedia] = useState({ camera: false, mic: false, stream: null });
   const [isExiting, setIsExiting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -25,7 +39,12 @@ const NewRoom = ({ onClose }) => {
     try {
       setIsCreating(true);
       setError('');
-      const room = await createRoom({ participantMode, emotionRecognition });
+      const room = await createRoom({
+        name: roomName.trim() || 'Lớp học trực tuyến',
+        participantMode,
+        analysisMode,
+        emotionRecognition: analysisMode === 'realtime',
+      });
       const mediaSessionId = retainMediaStream(lobbyMedia.stream);
       navigate(`/meeting/${room.id}`, {
         state: {
@@ -57,9 +76,62 @@ const NewRoom = ({ onClose }) => {
         roomTitle="Khởi tạo phòng học mới"
       >
         <div className="flex flex-col gap-4 bg-surface-container-lowest border-[3px] border-pure-black p-5 shadow-[4px_4px_0px_#000000]">
+          {/* Class Name Input */}
+          <div>
+            <label className="block text-label-md font-bold text-on-surface uppercase mb-1.5">
+              Tên lớp học / Chủ đề bài giảng
+            </label>
+            <input
+              type="text"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value)}
+              placeholder="VD: Toán 12A1 - Giải tích"
+              className="w-full px-3.5 py-2.5 bg-surface border-[2px] border-pure-black text-body-md font-bold focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000]"
+            />
+          </div>
+
+          {/* Analysis Mode Fieldset */}
+          <fieldset className="space-y-3">
+            <legend className="text-label-md font-bold text-on-surface uppercase mb-1">
+              Chế độ phân tích cảm xúc AI
+            </legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {analysisOptions.map((option) => {
+                const isSelected = analysisMode === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-start gap-3 border-[3px] border-pure-black p-3 transition-all ${
+                      isSelected
+                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
+                        : 'bg-surface hover:bg-surface-container'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="analysisMode"
+                      value={option.value}
+                      checked={isSelected}
+                      onChange={(e) => setAnalysisMode(e.target.value)}
+                      className="mt-1 h-4 w-4 accent-pure-black cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="block text-label-md font-bold text-on-surface">
+                        {option.title}
+                      </span>
+                      <span className="text-body-sm text-on-surface-variant leading-tight block mt-0.5">
+                        {option.description}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
           {/* Participant Mode Fieldset */}
           <fieldset className="space-y-3">
-            <legend className="text-label-md font-bold text-on-surface uppercase mb-2">
+            <legend className="text-label-md font-bold text-on-surface uppercase mb-1">
               Quản lý người tham gia
             </legend>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -95,27 +167,6 @@ const NewRoom = ({ onClose }) => {
               })}
             </div>
           </fieldset>
-
-          {/* Emotion Recognition Switch */}
-          <div className="flex items-center justify-between gap-4 border-[3px] border-pure-black bg-surface p-3 shadow-[2px_2px_0px_#000000]">
-            <div>
-              <p className="text-label-md font-bold text-on-surface">AI Cảm xúc thời gian thực</p>
-              <p className="text-body-sm text-on-surface-variant">
-                Tự động nhận diện mức độ tập trung học sinh trong lớp.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={emotionRecognition}
-              onClick={() => setEmotionRecognition((prev) => !prev)}
-              className={`w-14 h-8 border-[2px] border-pure-black p-0.5 flex items-center transition-colors cursor-pointer ${
-                emotionRecognition ? 'bg-bright-yellow justify-end' : 'bg-surface-variant justify-start'
-              }`}
-            >
-              <span className="w-6 h-6 bg-pure-black border border-pure-black shadow-xs block" />
-            </button>
-          </div>
 
           {/* Error Banner */}
           {error && (
