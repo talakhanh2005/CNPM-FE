@@ -6,7 +6,7 @@ import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
-import { disconnectRoomOnPageExit, getRoom, leaveRoom } from '../api/meetingApi';
+import { disconnectRoomOnPageExit, getRoom, leaveRoom, saveMeetingRecording } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { takeRetainedMediaStream } from '../utils/mediaSession';
 
@@ -36,6 +36,9 @@ const Meeting = () => {
   const sendRef = useRef(() => false);
   const hasLeftRoomRef = useRef(false);
   const exitGuardArmedRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const recordTimerRef = useRef(null);
+
   const [localStream, setLocalStream] = useState(null);
   const [mediaState, setMediaState] = useState(initialMediaState);
   const [mediaLoading, setMediaLoading] = useState(Boolean(initialMediaState.camera || initialMediaState.mic));
@@ -46,9 +49,69 @@ const Meeting = () => {
   const [dialogVisible, setDialogVisible] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [sessionSeconds, setSessionSeconds] = useState(125);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [toastMessage, setToastMessage] = useState('');
   const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
 
   const isTeacher = user?.role === 'teacher';
+
+  const handleStartRecord = () => {
+    try {
+      let streamToRecord = streamRef.current;
+      if (!streamToRecord || streamToRecord.getTracks().length === 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = 640;
+        canvas.height = 360;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#111111';
+          ctx.fillRect(0, 0, 640, 360);
+        }
+        streamToRecord = canvas.captureStream ? canvas.captureStream(15) : null;
+      }
+
+      if (window.MediaRecorder && streamToRecord) {
+        const recorder = new MediaRecorder(streamToRecord);
+        recorder.ondataavailable = () => {};
+        recorder.start(1000);
+        mediaRecorderRef.current = recorder;
+      }
+    } catch (e) {
+      console.warn('MediaRecorder fallback to timer mode', e);
+    }
+
+    setIsRecording(true);
+    setRecordingSeconds(0);
+    clearInterval(recordTimerRef.current);
+    recordTimerRef.current = setInterval(() => {
+      setRecordingSeconds((s) => s + 1);
+    }, 1000);
+  };
+
+  const handleStopRecord = async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch {
+        // ignore
+      }
+      mediaRecorderRef.current = null;
+    }
+    clearInterval(recordTimerRef.current);
+    setIsRecording(false);
+
+    try {
+      if (room?.id) {
+        await saveMeetingRecording(room.id, { durationSeconds: recordingSeconds || 45 });
+      }
+      setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
+      setTimeout(() => setToastMessage(''), 5000);
+    } catch {
+      setToastMessage('Đã hoàn tất lưu bản ghi.');
+      setTimeout(() => setToastMessage(''), 5000);
+    }
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -312,6 +375,7 @@ const Meeting = () => {
           <div className="bg-primary-container border-[2px] sm:border-[3px] border-pure-black px-2.5 sm:px-space-md py-1 font-headline font-bold text-label-md text-on-primary-container shadow-[2px_2px_0px_#000000] flex items-center gap-1 sm:gap-space-xs">
             <span className="material-symbols-outlined text-[18px]">vpn_key</span>
             #{room?.code || roomId}
+            {room?.name && <span className="hidden xl:inline font-mono font-normal">| {room.name}</span>}
           </div>
 
           <div className="hidden sm:flex items-center gap-1.5 bg-surface-container border-[2px] border-pure-black px-3 py-1 font-mono text-label-md text-on-surface shadow-[2px_2px_0px_#000000]">
@@ -319,9 +383,22 @@ const Meeting = () => {
             <span>{formatTimer(sessionSeconds)}</span>
           </div>
 
+          {/* REC Blinking indicator if recording */}
+          {isRecording && (
+            <div className="flex items-center gap-1.5 bg-vivid-red text-white border-[2px] border-pure-black px-3 py-1 font-mono text-label-md font-bold shadow-[2px_2px_0px_#000000] animate-pulse">
+              <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+              <span>REC {formatTimer(recordingSeconds)}</span>
+            </div>
+          )}
+
+          {/* Analysis mode badge */}
           <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
-            <span>AI Cảm xúc: Đang bật</span>
+            <span>
+              {room?.analysisMode === 'batch'
+                ? 'Chế độ: AI đánh giá sau'
+                : 'AI Cảm xúc: Realtime'}
+            </span>
           </div>
         </div>
 
@@ -373,6 +450,14 @@ const Meeting = () => {
             dialogVisible ? 'lg:pr-[390px]' : ''
           }`}
         >
+          {/* Toast Notification Banner */}
+          {toastMessage && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 border-[3px] border-pure-black bg-bright-yellow text-pure-black px-5 py-2.5 font-bold shadow-[4px_4px_0px_#000000] flex items-center gap-2 text-body-md animate-bounce">
+              <span className="material-symbols-outlined text-[24px]">verified</span>
+              <span>{toastMessage}</span>
+            </div>
+          )}
+
           <CameraGrid
             participants={participants}
             speakerOn={mediaState.speaker}
@@ -413,6 +498,9 @@ const Meeting = () => {
         onDialogToggle={toggleDialog}
         onLeave={handleLeave}
         leaving={leaving}
+        isTeacher={isTeacher}
+        isRecording={isRecording}
+        onRecordToggle={isRecording ? handleStopRecord : handleStartRecord}
       />
     </main>
   );

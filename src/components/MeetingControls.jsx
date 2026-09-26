@@ -5,6 +5,9 @@ const MeetingControls = ({
   onDialogToggle,
   onLeave,
   leaving = false,
+  isTeacher = false,
+  isRecording = false,
+  onRecordToggle,
 }) => {
   return (
     <footer className="h-20 bg-off-white border-t-[3px] border-pure-black shadow-[0px_-4px_0px_#000000] px-gutter flex items-center justify-between shrink-0 z-30">
@@ -64,6 +67,27 @@ const MeetingControls = ({
           </span>
           <span>{mediaState.speaker ? 'Loa: Bật' : 'Loa: Tắt'}</span>
         </button>
+
+        {/* Teacher Record Button */}
+        {isTeacher && (
+          <button
+            type="button"
+            onClick={onRecordToggle}
+            aria-label={isRecording ? 'Dừng ghi hình' : 'Bắt đầu ghi hình'}
+            className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
+              isRecording
+                ? 'bg-vivid-red text-white animate-pulse'
+                : 'bg-bright-yellow text-pure-black hover:bg-yellow-400'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]">
+              {isRecording ? 'stop_circle' : 'fiber_manual_record'}
+            </span>
+            <span className="hidden sm:inline">
+              {isRecording ? 'Dừng Ghi hình' : 'Ghi hình (AI)'}
+            </span>
+          </button>
+        )}
       </div>
 
       {/* Center / Right Action Buttons */}
