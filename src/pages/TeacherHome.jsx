@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
 import NewRoom from '../components/NewRoom';
 import History from '../components/HistoryRoom';
@@ -69,10 +69,20 @@ const scheduledLessons = [
 const TeacherHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState(location.state?.tab || 'dashboard');
   const [joinRoomCode, setJoinRoomCode] = useState(null);
-  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
+  const [isCreatingRoom, setIsCreatingRoom] = useState(location.state?.tab === 'phong-hoc');
   const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    if (location.state?.tab) {
+      setActiveTab(location.state.tab);
+      if (location.state.tab === 'phong-hoc') {
+        setIsCreatingRoom(true);
+      }
+    }
+  }, [location.state]);
 
   const filteredScheduled = scheduledLessons.filter(
     (l) =>
@@ -93,7 +103,10 @@ const TeacherHome = () => {
       {isCreatingRoom && (
         <div className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 md:p-6 teacher-content-enter">
-            <NewRoom onClose={() => setIsCreatingRoom(false)} />
+            <NewRoom onClose={() => {
+              setIsCreatingRoom(false);
+              setActiveTab('dashboard');
+            }} />
           </div>
         </div>
       )}
@@ -124,22 +137,23 @@ const TeacherHome = () => {
         <div className="flex flex-col w-full p-gutter md:p-margin gap-space-xl pb-24">
           {/* Welcome Banner */}
           <section className="flex flex-col md:flex-row justify-between items-start md:items-center bg-off-white border-[3px] border-pure-black p-space-lg shadow-[6px_6px_0px_#000000] gap-space-md relative overflow-hidden">
-            <div className="absolute -right-10 -bottom-10 opacity-10 pointer-events-none">
-              <span className="material-symbols-outlined text-[180px]">school</span>
+            <div className="absolute -right-6 -bottom-8 opacity-10 pointer-events-none select-none text-royal-blue">
+              <span className="material-symbols-outlined text-[200px]">co_present</span>
             </div>
 
             <div className="flex flex-col gap-space-xs z-10">
               <div className="flex items-center gap-space-sm">
-                <span className="px-space-sm py-1 bg-primary text-on-primary text-label-sm font-bold border-[2px] border-pure-black">
-                  BẢNG ĐIỀU KHIỂN GIÁO VIÊN
+                <span className="px-space-sm py-1 bg-royal-blue text-white text-label-sm font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5">
+                  <span className="material-symbols-outlined text-[16px]">co_present</span>
+                  TRUNG TÂM GIẢNG DẠY
                 </span>
-                <span className="text-on-surface-variant text-label-sm">Học kỳ II - 2024/2025</span>
+                <span className="text-on-surface-variant text-label-sm font-mono">Học kỳ II - 2024/2025</span>
               </div>
               <h1 className="text-headline-xl-mobile md:text-headline-xl font-headline font-bold text-on-surface tracking-tight">
-                Xin chào, Thầy {user?.username || 'Hoàng'}! <span className="inline-block animate-bounce">🍎</span>
+                Xin chào, Thầy/Cô {user?.username || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
               </h1>
               <p className="text-body-md text-on-surface-variant max-w-xl">
-                Hệ thống AI đang theo dõi các lớp học với độ tập trung cao. Bạn có thể khởi tạo phòng mới hoặc truy cập báo cáo cảm xúc thời gian thực.
+                Hệ thống AI đang hỗ trợ giám sát phòng học và phân tích mức độ tập trung của học sinh theo thời gian thực. Khởi tạo phòng mới hoặc kiểm tra báo cáo cảm xúc.
               </p>
             </div>
 
@@ -147,7 +161,7 @@ const TeacherHome = () => {
               <button
                 type="button"
                 onClick={() => setIsCreatingRoom(true)}
-                className="flex-1 md:flex-none px-space-md py-space-sm bg-bright-yellow text-on-surface border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-space-sm cursor-pointer"
+                className="flex-1 md:flex-none px-space-md py-space-sm bg-royal-blue text-white border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-space-sm cursor-pointer"
               >
                 <span className="material-symbols-outlined">add_box</span>
                 Tạo phòng học mới
@@ -165,7 +179,7 @@ const TeacherHome = () => {
               <button
                 type="button"
                 onClick={() => setActiveTab('lich-su')}
-                className="px-space-md py-space-sm bg-tertiary-container text-on-tertiary-fixed border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] transition-all flex items-center justify-center gap-space-sm cursor-pointer"
+                className="px-space-md py-space-sm bg-surface-container-high text-on-surface border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] transition-all flex items-center justify-center gap-space-sm cursor-pointer"
               >
                 <span className="material-symbols-outlined">history</span>
                 Xem lịch sử
