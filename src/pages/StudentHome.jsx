@@ -291,8 +291,15 @@ const StudentDashBoard = () => {
     >
       {/* JoinRoom Modal Overlay */}
       {joinRoomCode && (
-        <div className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-4xl max-h-[90vh] overflow-y-auto p-4 md:p-6 teacher-content-enter">
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setJoinRoomCode(null);
+            }
+          }}
+          className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4"
+        >
+          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden teacher-content-enter">
             <JoinRoom roomCode={joinRoomCode} onClose={() => setJoinRoomCode(null)} />
           </div>
         </div>
