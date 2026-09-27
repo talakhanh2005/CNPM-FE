@@ -68,7 +68,7 @@ const DashboardLayout = ({
         <div className="px-gutter mb-space-xl flex items-center justify-between">
           <Link to="/" className="flex items-center gap-space-sm">
             <img
-              alt="BauhausEdu Logo"
+              alt="Neo-Learn AI Logo"
               className="h-8 w-auto object-contain"
               src="/bauhaus-logo.png"
             />

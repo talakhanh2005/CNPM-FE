@@ -73,7 +73,7 @@ const Register = () => {
               HỌC THUẬT.<br />CẢM XÚC.<br />TRÍ TUỆ NHÂN TẠO.
             </h1>
             <p className="text-body-lg text-on-surface-variant max-w-md">
-              Nền tảng giáo dục thông minh ứng dụng AI thấu cảm, kết nối học sinh và giáo viên trong không gian hình học chuẩn mực Bauhaus.
+              Nền tảng giáo dục thông minh ứng dụng AI thấu cảm, kết nối học sinh và giáo viên trong không gian trực tuyến hiện đại, trực quan.
             </p>
           </div>
 
