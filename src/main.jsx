@@ -23,4 +23,8 @@ const enableMocking = async () => {
   });
 };
 
-enableMocking().finally(render);
+const mockSetting = import.meta.env.VITE_ENABLE_MOCKS;
+const shouldEnableMocking = mockSetting === 'true'
+  || (mockSetting !== 'false' && import.meta.env.DEV);
+
+(shouldEnableMocking ? enableMocking() : Promise.resolve()).finally(render);

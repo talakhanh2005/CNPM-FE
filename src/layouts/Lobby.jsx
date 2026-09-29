@@ -164,15 +164,15 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
   }, []);
 
   return (
-    <div className="flex flex-col w-full h-full bg-surface text-on-surface font-body overflow-hidden">
+    <div className="flex min-h-0 max-h-full flex-col w-full h-full bg-surface text-on-surface font-body overflow-hidden">
       {/* Top compact Neo-Bauhaus Header */}
       <div className="flex items-center justify-between bg-surface-container-low px-4 py-2.5 border-b-[3px] border-pure-black shrink-0">
         <div className="flex items-center gap-2.5">
           <div className="w-3.5 h-3.5 bg-vivid-red border-[2px] border-pure-black" />
           <div className="w-3.5 h-3.5 rounded-full bg-royal-blue border-[2px] border-pure-black" />
           <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[13px] border-b-bright-yellow" />
-          <span className="font-headline font-bold text-label-lg tracking-tight text-on-surface uppercase ml-1">
-            Phòng Chờ Trực Tuyến // Lớp Học AI
+          <span className="font-headline font-bold text-label-lg tracking-tight text-on-surface uppercase ml-1 truncate">
+            {roomTitle || 'Phòng Chờ Trực Tuyến // Lớp Học AI'}
           </span>
         </div>
 
@@ -194,7 +194,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
       </div>
 
       {/* Main Container - 2 Columns with internal responsive layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-3 md:p-5 flex-1 overflow-y-auto">
+      <div className="grid min-h-0 grid-cols-1 lg:grid-cols-12 gap-4 p-3 md:p-5 flex-1 overflow-y-auto overscroll-contain">
         {/* Left Column: Camera Preview & Quick Device Toggles (7 Cols) */}
         <div className="lg:col-span-7 flex flex-col gap-3">
           {/* Video Preview Card */}

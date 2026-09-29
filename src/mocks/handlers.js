@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
 import { isParticipantMode, isUserRole, isAnalysisMode } from './contracts';
+import { getFallbackIceServers, hasTurnServer } from '../config/iceServers';
 
 const STORE_KEY = 'cnpm-msw-store';
 let users = new Map();
@@ -247,7 +248,6 @@ export const handlers = [
 
     room.recordingStatus = 'processing';
     room.durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
-    room.status = 'closed';
     saveState();
 
     setTimeout(() => {
@@ -278,6 +278,18 @@ export const handlers = [
       saveState();
     }
     return ok(toRoom(room));
+  })),
+
+  http.get('/api/meetings/:roomId/ice-config', ({ request, params }) => withState(() => {
+    const user = getCurrentUser(request);
+    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
+    const room = rooms.get(params.roomId);
+    if (!room || room.status !== 'active') return fail('Không tìm thấy phòng đang hoạt động.', 404, 'ROOM_NOT_FOUND');
+    const participant = room.participants.find((item) => item.id === user.id && item.status === 'joined');
+    if (!participant) return fail('Bạn chưa tham gia phòng này.', 403, 'NOT_A_PARTICIPANT');
+
+    const iceServers = getFallbackIceServers();
+    return ok({ iceServers, turn_configured: hasTurnServer(iceServers) });
   })),
 
   http.post('/api/rooms/join', async ({ request }) => withState(async () => {
@@ -327,9 +339,29 @@ export const handlers = [
     if (!participant) return fail('Bạn chưa tham gia phòng này.', 409, 'NOT_A_PARTICIPANT');
     participant.status = 'left';
     participant.leftAt = now();
-
-    if (room.hostId === user.id) room.status = 'closed';
     saveState();
     return ok({ roomId: room.id, participantId: user.id, status: participant.status, leftAt: participant.leftAt }, 'Đã rời phòng.');
+  })),
+
+  http.post('/api/rooms/:roomId/end', ({ request, params }) => withState(() => {
+    const user = getCurrentUser(request);
+    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
+    const room = rooms.get(params.roomId);
+    if (!room) return fail('Không tìm thấy phòng.', 404, 'ROOM_NOT_FOUND');
+    if (room.hostId !== user.id || user.role !== 'teacher') {
+      return fail('Chỉ giáo viên tạo phòng mới có thể đóng phòng.', 403, 'FORBIDDEN');
+    }
+    if (room.status === 'closed') return ok(toRoom(room), 'Phòng đã được đóng trước đó.');
+
+    const endedAt = now();
+    room.status = 'closed';
+    room.endedAt = endedAt;
+    room.participants = (room.participants || []).map((participant) => ({
+      ...participant,
+      status: 'left',
+      leftAt: participant.leftAt || endedAt,
+    }));
+    saveState();
+    return ok(toRoom(room), 'Đã đóng phòng học.');
   })),
 ];

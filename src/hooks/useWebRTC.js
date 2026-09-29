@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { fallbackIceServers } from '../config/iceServers';
 
 const fallbackName = 'Người tham gia';
 const isStable = (connection) => !connection.signalingState || connection.signalingState === 'stable';
 const isLiveTrack = (track) => track?.readyState !== 'ended';
 
-const useWebRTC = ({ user, localStream, mediaState, send }) => {
+const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackIceServers }) => {
   const peersRef = useRef(new Map());
   const localStreamRef = useRef(localStream);
   const [remoteParticipants, setRemoteParticipants] = useState([]);
@@ -113,7 +114,7 @@ const useWebRTC = ({ user, localStream, mediaState, send }) => {
     }
     if (!window.RTCPeerConnection) return null;
 
-    const connection = new RTCPeerConnection({ iceServers: [] });
+    const connection = new RTCPeerConnection({ iceServers });
     const peer = {
       connection,
       participant,
@@ -176,7 +177,7 @@ const useWebRTC = ({ user, localStream, mediaState, send }) => {
     };
     updateParticipant(participant);
     return peer;
-  }, [removePeer, send, updateParticipant, user?.id]);
+  }, [iceServers, removePeer, send, updateParticipant, user?.id]);
 
   useEffect(() => {
     if (!localStream) return undefined;

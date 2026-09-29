@@ -147,7 +147,6 @@ const History = () => {
               {filteredHistory.map((item) => {
                 const isBatch = item.analysisMode === 'batch';
                 const isProcessing = item.recordingStatus === 'processing';
-                const isCompleted = !isProcessing && (item.recordingStatus === 'completed' || item.status === 'closed');
                 const isOngoing = item.status === 'active';
 
                 return (

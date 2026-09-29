@@ -108,9 +108,9 @@ const TeacherHome = () => {
               setActiveTab('dashboard');
             }
           }}
-          className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-start sm:items-center justify-center overflow-y-auto p-2 sm:p-4"
         >
-          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden teacher-content-enter">
+          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-5xl h-[calc(100dvh-1rem)] sm:h-[88dvh] min-h-0 flex flex-col overflow-hidden teacher-content-enter">
             <NewRoom onClose={() => {
               setIsCreatingRoom(false);
               setActiveTab('dashboard');
@@ -126,9 +126,9 @@ const TeacherHome = () => {
               setJoinRoomCode(null);
             }
           }}
-          className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-center justify-center p-2 sm:p-4"
+          className="fixed inset-0 z-50 bg-pure-black/60 backdrop-blur-xs flex items-start sm:items-center justify-center overflow-y-auto p-2 sm:p-4"
         >
-          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden teacher-content-enter">
+          <div className="bg-surface border-[3px] border-pure-black shadow-[8px_8px_0px_#000000] w-full max-w-5xl h-[calc(100dvh-1rem)] sm:h-[88dvh] min-h-0 flex flex-col overflow-hidden teacher-content-enter">
             <JoinRoom roomCode={joinRoomCode} onClose={() => setJoinRoomCode(null)} />
           </div>
         </div>

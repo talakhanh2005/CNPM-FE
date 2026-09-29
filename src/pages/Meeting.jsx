@@ -6,8 +6,9 @@ import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
-import { disconnectRoomOnPageExit, getRoom, leaveRoom, saveMeetingRecording } from '../api/meetingApi';
+import { closeRoom, disconnectRoomOnPageExit, getIceConfig, getRoom, leaveRoom, saveMeetingRecording } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
+import { fallbackIceServers, normalizeIceServers } from '../config/iceServers';
 import { takeRetainedMediaStream } from '../utils/mediaSession';
 
 const defaultMediaState = { mic: false, speaker: true, camera: false };
@@ -45,16 +46,19 @@ const Meeting = () => {
   const [mediaError, setMediaError] = useState('');
   const [roomError, setRoomError] = useState('');
   const [leaving, setLeaving] = useState(false);
+  const [closing, setClosing] = useState(false);
   const [dialogPanel, setDialogPanel] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
-  const [sessionSeconds, setSessionSeconds] = useState(125);
+  const [sessionSeconds, setSessionSeconds] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [toastMessage, setToastMessage] = useState('');
+  const [iceConfig, setIceConfig] = useState({ meetingId: null, servers: fallbackIceServers });
   const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
 
   const isTeacher = user?.role === 'teacher';
+  const iceConfigReady = Boolean(room?.id && iceConfig.meetingId === room.id);
 
   const handleStartRecord = () => {
     try {
@@ -108,7 +112,7 @@ const Meeting = () => {
       setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
       setTimeout(() => setToastMessage(''), 5000);
     } catch {
-      setToastMessage('Đã hoàn tất lưu bản ghi.');
+      setToastMessage('Không thể lưu bản ghi. Vui lòng thử lại.');
       setTimeout(() => setToastMessage(''), 5000);
     }
   };
@@ -118,6 +122,19 @@ const Meeting = () => {
       setSessionSeconds((sec) => sec + 1);
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => () => {
+    clearInterval(recordTimerRef.current);
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // Recorder may already be stopping while the meeting unmounts.
+      }
+    }
+    mediaRecorderRef.current = null;
   }, []);
 
   const formatTimer = (seconds) => {
@@ -201,16 +218,42 @@ const Meeting = () => {
     };
   }, []);
 
+  useEffect(() => {
+    if (!room?.id) return undefined;
+
+    let active = true;
+    const meetingId = room.id;
+    getIceConfig(room.id)
+      .then((config) => {
+        if (active) {
+          setIceConfig({ meetingId, servers: normalizeIceServers(config?.iceServers) });
+        }
+      })
+      .catch(() => {
+        if (active) setIceConfig({ meetingId, servers: fallbackIceServers });
+      });
+
+    return () => { active = false; };
+  }, [room?.id]);
+
   const { remoteParticipants, handleEvent } = useWebRTC({
     user,
     localStream,
     mediaState,
+    iceServers: iceConfig.servers,
     send: (message) => sendRef.current(message),
   });
   const { send, close } = useWebSocket({
-    meetingId: room?.id,
+    meetingId: iceConfigReady ? room?.id : null,
     user,
-    onEvent: handleEvent,
+    onEvent: (event) => {
+      if (event?.type === 'room.ended') {
+        hasLeftRoomRef.current = true;
+        navigate('/', { replace: true, state: { notice: 'Giáo viên đã đóng phòng học.' } });
+        return;
+      }
+      void handleEvent(event);
+    },
     onStatus: setConnectionStatus,
   });
 
@@ -324,12 +367,30 @@ const Meeting = () => {
     }
   };
 
+  const handleCloseRoom = async () => {
+    if (!isTeacher || !room || !window.confirm('Đóng phòng sẽ kết thúc buổi học cho tất cả người tham gia. Bạn có chắc không?')) return;
+    try {
+      setClosing(true);
+      hasLeftRoomRef.current = true;
+      if (isRecording) await handleStopRecord();
+      await closeRoom(room.id);
+      send({ type: 'room.ended', payload: { roomId: room.id } });
+      close();
+      navigate('/', { replace: true });
+    } catch (error) {
+      hasLeftRoomRef.current = false;
+      setRoomError(getApiErrorMessage(error, 'Không thể đóng phòng.'));
+    } finally {
+      setClosing(false);
+    }
+  };
+
   const participants = [
     ...remoteParticipants,
     {
       id: user?.id || 'local-user',
-      name: user?.username || 'Bạn',
-      initials: user?.username?.[0]?.toUpperCase() || 'B',
+      name: user?.full_name || user?.username || 'Bạn',
+      initials: (user?.full_name || user?.username)?.[0]?.toUpperCase() || 'B',
       isLocal: true,
       stream: localStream,
       cameraOn: mediaState.camera,
@@ -408,15 +469,17 @@ const Meeting = () => {
             <span>{isTeacher ? 'Chủ tọa (Giáo viên)' : 'Học viên'}</span>
           </div>
 
-          <button
-            type="button"
-            onClick={handleLeave}
-            disabled={leaving}
-            className="px-3.5 py-1.5 bg-vivid-red text-on-error border-[2px] border-pure-black font-headline font-bold text-label-sm uppercase shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
-          >
-            <span className="material-symbols-outlined text-[18px]">logout</span>
-            <span>Thoát</span>
-          </button>
+          {isTeacher && (
+            <button
+              type="button"
+              onClick={handleCloseRoom}
+              disabled={closing || leaving}
+              className="px-3.5 py-1.5 bg-vivid-red text-on-error border-[2px] border-pure-black font-headline font-bold text-label-sm uppercase shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">meeting_room</span>
+              <span>{closing ? 'Đang đóng...' : 'Đóng phòng'}</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -427,7 +490,9 @@ const Meeting = () => {
           <div className="bg-surface-container-low border-b-[2px] border-pure-black px-4 py-2 shrink-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-label-sm">
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
               <span className="text-on-surface-variant font-mono">Học sinh:</span>
-              <span className="font-bold text-secondary">{participants.length} bạn</span>
+              <span className="font-bold text-secondary">
+                {remoteParticipants.filter((participant) => participant.role === 'student').length} bạn
+              </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
               <span className="text-on-surface-variant font-mono">Tập trung TB:</span>

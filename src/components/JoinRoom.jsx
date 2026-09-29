@@ -43,7 +43,7 @@ const JoinRoom = ({ roomCode, onClose }) => {
   return (
     <div
       onAnimationEnd={isExiting ? (onClose || (() => navigate(-1))) : undefined}
-      className={isExiting ? 'join-room-exit h-full flex flex-col' : 'h-full flex flex-col'}
+      className={isExiting ? 'join-room-exit min-h-0 h-full flex flex-col' : 'min-h-0 h-full flex flex-col'}
     >
       <Lobby
         onMediaChange={setLobbyMedia}

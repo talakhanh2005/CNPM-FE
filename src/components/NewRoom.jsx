@@ -69,7 +69,7 @@ const NewRoom = ({ onClose }) => {
   return (
     <div
       onAnimationEnd={isExiting ? onClose : undefined}
-      className={`${isExiting ? 'new-room-exit ' : ''}h-full flex flex-col`}
+      className={`${isExiting ? 'new-room-exit ' : ''}min-h-0 h-full flex flex-col`}
     >
       <Lobby
         onMediaChange={setLobbyMedia}
