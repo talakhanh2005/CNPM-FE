@@ -7,7 +7,8 @@ import { getApiErrorMessage } from '../api/axiosClient';
 const Register = () => {
   const [role, setRole] = useState('student');
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [teacherRegistrationKey, setTeacherRegistrationKey] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -19,14 +20,18 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const trimmedUsername = username.trim();
+    const normalizedEmail = email.trim().toLowerCase();
 
-    if (!trimmedUsername || trimmedUsername.length < 3) {
-      setError('Tên đăng nhập cần ít nhất 3 ký tự.');
+    if (!fullName.trim()) {
+      setError('Vui lòng nhập họ và tên.');
       return;
     }
-    if (password.length < 4) {
-      setError('Mật khẩu cần ít nhất 4 ký tự.');
+    if (!normalizedEmail) {
+      setError('Vui lòng nhập email.');
+      return;
+    }
+    if (password.length < 8) {
+      setError('Mật khẩu cần ít nhất 8 ký tự.');
       return;
     }
     if (password !== confirmPassword) {
@@ -43,12 +48,16 @@ const Register = () => {
       setError('');
       await register({
         role,
-        username: trimmedUsername,
+        email: normalizedEmail,
+        full_name: fullName.trim(),
         password,
+        ...(role === 'teacher' && teacherRegistrationKey
+          ? { teacher_registration_key: teacherRegistrationKey }
+          : {}),
       });
       navigate('/login', { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Đăng ký thất bại. Tên đăng nhập có thể đã tồn tại.'));
+      setError(getApiErrorMessage(err, 'Đăng ký thất bại. Email có thể đã tồn tại.'));
     } finally {
       setLoading(false);
     }
@@ -200,21 +209,36 @@ const Register = () => {
                 />
               </div>
 
-              {/* Username Field */}
+              {/* Email Field */}
               <div>
                 <label className="block text-label-md font-bold text-on-surface mb-1">
-                  Tên đăng nhập
+                  Email
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   required
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Tên đăng nhập (ít nhất 3 ký tự)..."
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="email@example.com"
                   className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
                 />
               </div>
+
+              {role === 'teacher' && (
+                <div>
+                  <label className="block text-label-md font-bold text-on-surface mb-1">
+                    Mã mời giáo viên
+                  </label>
+                  <input
+                    type="password"
+                    value={teacherRegistrationKey}
+                    onChange={(e) => setTeacherRegistrationKey(e.target.value)}
+                    placeholder="Nhập mã mời do quản trị viên cung cấp"
+                    className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                  />
+                </div>
+              )}
 
               {/* Password & Confirm Password Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

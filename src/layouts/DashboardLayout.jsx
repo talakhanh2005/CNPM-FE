@@ -128,11 +128,11 @@ const DashboardLayout = ({
                 isTeacher ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'
               }`}
             >
-              {user?.username?.[0] || 'U'}
+              {(user?.full_name || user?.email)?.[0] || 'U'}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-label-md font-bold text-on-surface truncate">
-                {user?.username || 'Người dùng'}
+                {user?.full_name || user?.email || 'Người dùng'}
               </p>
               <span
                 className={`text-[11px] font-bold uppercase font-mono px-1.5 py-0.5 border border-pure-black inline-block mt-0.5 ${

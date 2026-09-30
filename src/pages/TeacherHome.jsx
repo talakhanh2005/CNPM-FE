@@ -165,7 +165,7 @@ const TeacherHome = () => {
                 <span className="text-on-surface-variant text-label-sm font-mono">Học kỳ II - 2024/2025</span>
               </div>
               <h1 className="text-headline-xl-mobile md:text-headline-xl font-headline font-bold text-on-surface tracking-tight">
-                Xin chào, Thầy/Cô {user?.username || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
+                Xin chào, Thầy/Cô {user?.full_name || user?.email || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
               </h1>
               <p className="text-body-md text-on-surface-variant max-w-xl">
                 Hệ thống AI đang hỗ trợ giám sát phòng học và phân tích mức độ tập trung của học sinh theo thời gian thực. Khởi tạo phòng mới hoặc kiểm tra báo cáo cảm xúc.

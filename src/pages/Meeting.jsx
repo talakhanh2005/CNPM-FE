@@ -6,7 +6,7 @@ import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
-import { closeRoom, disconnectRoomOnPageExit, getIceConfig, getRoom, leaveRoom, saveMeetingRecording } from '../api/meetingApi';
+import { closeRoom, getIceConfig, getRoom, leaveRoom, uploadMeetingRecording } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { fallbackIceServers, normalizeIceServers } from '../config/iceServers';
 import { takeRetainedMediaStream } from '../utils/mediaSession';
@@ -38,6 +38,7 @@ const Meeting = () => {
   const hasLeftRoomRef = useRef(false);
   const exitGuardArmedRef = useRef(false);
   const mediaRecorderRef = useRef(null);
+  const recordingChunksRef = useRef([]);
   const recordTimerRef = useRef(null);
 
   const [localStream, setLocalStream] = useState(null);
@@ -77,7 +78,10 @@ const Meeting = () => {
 
       if (window.MediaRecorder && streamToRecord) {
         const recorder = new MediaRecorder(streamToRecord);
-        recorder.ondataavailable = () => {};
+        recordingChunksRef.current = [];
+        recorder.ondataavailable = ({ data }) => {
+          if (data?.size) recordingChunksRef.current.push(data);
+        };
         recorder.start(1000);
         mediaRecorderRef.current = recorder;
       }
@@ -94,24 +98,30 @@ const Meeting = () => {
   };
 
   const handleStopRecord = async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {
-        // ignore
-      }
-      mediaRecorderRef.current = null;
-    }
+    const recorder = mediaRecorderRef.current;
     clearInterval(recordTimerRef.current);
     setIsRecording(false);
 
     try {
-      if (room?.id) {
-        await saveMeetingRecording(room.id, { durationSeconds: recordingSeconds || 45 });
+      if (!recorder || !room?.id) throw new Error('Không có dữ liệu ghi hình.');
+      if (recorder.state !== 'inactive') {
+        await new Promise((resolve, reject) => {
+          recorder.addEventListener('stop', resolve, { once: true });
+          recorder.addEventListener('error', reject, { once: true });
+          recorder.stop();
+        });
       }
+      const videoBlob = new Blob(recordingChunksRef.current, {
+        type: recorder.mimeType || 'video/webm',
+      });
+      if (!videoBlob.size) throw new Error('Bản ghi trống.');
+      await uploadMeetingRecording(room.id, videoBlob);
+      recordingChunksRef.current = [];
+      mediaRecorderRef.current = null;
       setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
       setTimeout(() => setToastMessage(''), 5000);
     } catch {
+      mediaRecorderRef.current = null;
       setToastMessage('Không thể lưu bản ghi. Vui lòng thử lại.');
       setTimeout(() => setToastMessage(''), 5000);
     }
@@ -252,6 +262,10 @@ const Meeting = () => {
         navigate('/', { replace: true, state: { notice: 'Giáo viên đã đóng phòng học.' } });
         return;
       }
+      if (event?.type === 'socket.error') {
+        setRoomError(event.message || 'Kết nối phòng gặp lỗi.');
+        return;
+      }
       void handleEvent(event);
     },
     onStatus: setConnectionStatus,
@@ -269,7 +283,6 @@ const Meeting = () => {
       if (hasLeftRoomRef.current) return;
       hasLeftRoomRef.current = true;
       close();
-      void disconnectRoomOnPageExit(room.id);
     };
 
     window.addEventListener('pagehide', disconnectOnPageExit);

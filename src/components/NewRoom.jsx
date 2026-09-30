@@ -5,11 +5,6 @@ import { createRoom } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { retainMediaStream } from '../utils/mediaSession';
 
-const participantOptions = [
-  { value: 'free', title: 'Tự do', description: 'Mọi học sinh có mã đều vào được ngay.' },
-  { value: 'approval', title: 'Đợi duyệt', description: 'Giáo viên duyệt học sinh trước khi vào.' },
-];
-
 const analysisOptions = [
   {
     value: 'realtime',
@@ -25,8 +20,6 @@ const analysisOptions = [
 
 const NewRoom = ({ onClose }) => {
   const navigate = useNavigate();
-  const [roomName, setRoomName] = useState('Toán 12A1 - Giải tích');
-  const [participantMode, setParticipantMode] = useState('free');
   const [analysisMode, setAnalysisMode] = useState('batch');
   const [lobbyMedia, setLobbyMedia] = useState({ camera: false, mic: false, stream: null });
   const [isExiting, setIsExiting] = useState(false);
@@ -39,12 +32,7 @@ const NewRoom = ({ onClose }) => {
     try {
       setIsCreating(true);
       setError('');
-      const room = await createRoom({
-        name: roomName.trim() || 'Lớp học trực tuyến',
-        participantMode,
-        analysisMode,
-        emotionRecognition: analysisMode === 'realtime',
-      });
+      const room = await createRoom({ analysisMode });
       const mediaSessionId = retainMediaStream(lobbyMedia.stream);
       navigate(`/meeting/${room.id}`, {
         state: {
@@ -77,20 +65,6 @@ const NewRoom = ({ onClose }) => {
         onClose={handleClose}
       >
         <div className="flex flex-col gap-3 bg-surface-container-lowest border-[3px] border-pure-black p-3.5 shadow-[4px_4px_0px_#000000]">
-          {/* Class Name Input */}
-          <div>
-            <label className="block text-label-xs font-bold text-on-surface uppercase mb-1">
-              Tên lớp học / Chủ đề bài giảng
-            </label>
-            <input
-              type="text"
-              value={roomName}
-              onChange={(e) => setRoomName(e.target.value)}
-              placeholder="VD: Toán 12A1 - Giải tích"
-              className="w-full px-3 py-2 bg-surface border-[2px] border-pure-black text-body-sm font-bold focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000]"
-            />
-          </div>
-
           {/* Analysis Mode */}
           <fieldset className="space-y-1.5">
             <legend className="text-label-xs font-bold text-on-surface uppercase">
@@ -114,45 +88,6 @@ const NewRoom = ({ onClose }) => {
                       value={option.value}
                       checked={isSelected}
                       onChange={(e) => setAnalysisMode(e.target.value)}
-                      className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
-                    />
-                    <div className="min-w-0">
-                      <span className="block text-label-xs font-bold text-on-surface leading-tight">
-                        {option.title}
-                      </span>
-                      <span className="text-[11px] text-on-surface-variant leading-tight block mt-0.5">
-                        {option.description}
-                      </span>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-          </fieldset>
-
-          {/* Participant Mode */}
-          <fieldset className="space-y-1.5">
-            <legend className="text-label-xs font-bold text-on-surface uppercase">
-              Quản lý người tham gia
-            </legend>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {participantOptions.map((option) => {
-                const isSelected = participantMode === option.value;
-                return (
-                  <label
-                    key={option.value}
-                    className={`flex cursor-pointer items-start gap-2 border-[2px] border-pure-black p-2 transition-all ${
-                      isSelected
-                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
-                        : 'bg-surface hover:bg-surface-container'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="participantMode"
-                      value={option.value}
-                      checked={isSelected}
-                      onChange={(e) => setParticipantMode(e.target.value)}
                       className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
                     />
                     <div className="min-w-0">

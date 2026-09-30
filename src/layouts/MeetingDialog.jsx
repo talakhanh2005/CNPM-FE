@@ -110,7 +110,7 @@ const MeetingDialog = ({
         {activePanel === 'settings' && (
           <div className="space-y-3 text-body-sm">
             <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000] flex justify-between items-center">
-              <span className="font-bold">Realtime Mock</span>
+              <span className="font-bold">Kết nối realtime</span>
               <span className="font-mono px-2 py-0.5 bg-bright-yellow border border-pure-black font-bold">
                 {connectionStatus}
               </span>
@@ -124,7 +124,7 @@ const MeetingDialog = ({
             </div>
 
             <div className="p-3 bg-surface-container-low border-[2px] border-pure-black text-xs text-on-surface-variant leading-relaxed">
-              Luồng âm thanh và hình ảnh sử dụng WebRTC native browser stream. Tín hiệu phòng được điều phối qua WebSocket Mock.
+              Luồng âm thanh và hình ảnh sử dụng WebRTC native. Local dùng realtime mock; khi tắt mock, tín hiệu được điều phối qua WebSocket backend.
             </div>
           </div>
         )}

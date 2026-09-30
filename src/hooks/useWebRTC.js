@@ -226,10 +226,10 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
       return;
     }
     if (event.type === 'media.status') {
-      updateParticipant({ id: event.senderId }, {
-        cameraOn: event.payload.camera,
-        micOn: event.payload.mic,
-      });
+      const mediaPatch = {};
+      if (typeof event.payload.camera === 'boolean') mediaPatch.cameraOn = event.payload.camera;
+      if (typeof event.payload.mic === 'boolean') mediaPatch.micOn = event.payload.mic;
+      updateParticipant({ id: event.senderId }, mediaPatch);
       return;
     }
     if (event.type === 'signal.offer') {

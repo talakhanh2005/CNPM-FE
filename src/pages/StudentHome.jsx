@@ -470,7 +470,7 @@ const StudentDashBoard = () => {
                 <span className="text-on-surface-variant text-label-sm font-mono">AI Tutor Trực tuyến</span>
               </div>
               <h1 className="text-headline-xl font-headline font-bold text-on-surface">
-                Xin chào, {user?.username || 'Nguyễn Văn An'}! 🎓
+                Xin chào, {user?.full_name || user?.email || 'Nguyễn Văn An'}! 🎓
               </h1>
               <p className="text-body-lg text-on-surface-variant">
                 Trạng thái cảm xúc học tập: <strong className="text-secondary font-bold">Tập trung cao độ (94%)</strong> - AI ghi nhận bạn đang tiếp thu bài học rất hiệu quả.

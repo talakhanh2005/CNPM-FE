@@ -1,5 +1,5 @@
 import { http, HttpResponse } from 'msw';
-import { isParticipantMode, isUserRole, isAnalysisMode } from './contracts';
+import { isUserRole } from './contracts';
 import { getFallbackIceServers, hasTurnServer } from '../config/iceServers';
 
 const STORE_KEY = 'cnpm-msw-store';
@@ -121,23 +121,27 @@ const fail = (message, status = 400, code = 'BAD_REQUEST') => HttpResponse.json(
 
 const publicUser = (user) => ({
   id: user.id,
-  username: user.username,
+  email: user.email,
+  full_name: user.full_name,
   role: user.role,
+  created_at: user.created_at,
 });
 
 const toRoom = (room) => ({
   id: room.id,
-  name: room.name || 'Lớp học trực tuyến',
   code: room.code,
-  hostId: room.hostId,
-  status: room.status,
-  participantMode: room.participantMode,
-  emotionRecognition: room.emotionRecognition ?? true,
-  analysisMode: room.analysisMode || (room.emotionRecognition === false ? 'batch' : 'realtime'),
-  recordingStatus: room.recordingStatus || 'none',
-  durationMinutes: room.durationMinutes || 45,
-  createdAt: room.createdAt,
-  participants: (room.participants || []).map((participant) => ({ ...participant })),
+  teacher_id: room.hostId,
+  student_id: room.participants?.find((participant) => participant.role === 'student')?.id || null,
+  mode: room.analysisMode === 'batch' ? 'after_session' : 'realtime',
+  status: room.status === 'active' ? 'ongoing' : room.status === 'closed' ? 'ended' : room.status,
+  created_at: room.createdAt,
+  ended_at: room.endedAt || null,
+  participants: (room.participants || []).map((participant) => ({
+    user_id: participant.id,
+    status: participant.status === 'disconnected' ? 'joined' : participant.status,
+    joined_at: participant.joinedAt || room.createdAt,
+    left_at: participant.leftAt || null,
+  })),
 });
 
 const getCurrentUser = (request) => {
@@ -157,59 +161,94 @@ const nextRoomCode = () => {
 export const handlers = [
   http.post('/api/auth/register', async ({ request }) => withState(async () => {
     const body = await request.json();
-    const { username, password, role } = body || {};
-    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    const { email, full_name: fullName, password, role } = body || {};
+    const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
 
-    if (normalizedUsername.length < 3 || typeof password !== 'string' || password.length < 4 || !isUserRole(role)) {
-      return fail('Tên đăng nhập, mật khẩu hoặc vai trò không hợp lệ.', 422, 'VALIDATION_ERROR');
+    if (!normalizedEmail.includes('@') || !String(fullName || '').trim() || typeof password !== 'string' || password.length < 8 || !isUserRole(role)) {
+      return fail('Email, họ tên, mật khẩu hoặc vai trò không hợp lệ.', 422, 'VALIDATION_ERROR');
     }
-    if ([...users.values()].some((user) => user.username.toLowerCase() === normalizedUsername.toLowerCase())) {
-      return fail('Tên đăng nhập đã tồn tại.', 409, 'USERNAME_TAKEN');
+    if ([...users.values()].some((user) => user.email?.toLowerCase() === normalizedEmail)) {
+      return fail('Email đã tồn tại.', 409, 'EMAIL_EXISTS');
     }
 
-    const user = { id: id('user'), username: normalizedUsername, password, role };
+    const user = {
+      id: id('user'),
+      email: normalizedEmail,
+      full_name: fullName.trim(),
+      password,
+      role,
+      created_at: now(),
+    };
     users.set(user.id, user);
     saveState();
-    return ok({ user: publicUser(user) }, 'Đăng ký thành công.');
+    return ok(publicUser(user), 'Đăng ký thành công.');
   })),
 
   http.post('/api/auth/login', async ({ request }) => withState(async () => {
     const body = await request.json();
-    const { username, password, role } = body || {};
-    const user = [...users.values()].find((item) => item.username.toLowerCase() === String(username || '').trim().toLowerCase());
+    const { email, password } = body || {};
+    const user = [...users.values()].find((item) => item.email?.toLowerCase() === String(email || '').trim().toLowerCase());
 
-    if (!user || user.password !== password || user.role !== role) {
-      return fail('Tên đăng nhập, mật khẩu hoặc vai trò không đúng.', 401, 'INVALID_CREDENTIALS');
+    if (!user || user.password !== password) {
+      return fail('Email hoặc mật khẩu không đúng.', 401, 'INVALID_CREDENTIALS');
     }
 
-    const token = id('session');
-    sessions.set(token, user.id);
+    const accessToken = id('access');
+    const refreshToken = id('refresh');
+    sessions.set(accessToken, user.id);
+    sessions.set(refreshToken, user.id);
     saveState();
-    return ok({ token, user: publicUser(user) }, 'Đăng nhập thành công.');
+    return ok({
+      access_token: accessToken,
+      refresh_token: refreshToken,
+      token_type: 'bearer',
+      expires_in: 900,
+    }, 'Đăng nhập thành công.');
   })),
 
-  http.post('/api/rooms', async ({ request }) => withState(async () => {
+  http.get('/api/auth/me', ({ request }) => withState(() => {
+    const user = getCurrentUser(request);
+    return user ? ok(publicUser(user)) : fail('Phiên đăng nhập không hợp lệ.', 401, 'INVALID_TOKEN');
+  })),
+
+  http.post('/api/auth/refresh', async ({ request }) => withState(async () => {
+    const { refresh_token: refreshToken } = await request.json();
+    const userId = sessions.get(refreshToken);
+    if (!userId) return fail('Refresh token không hợp lệ.', 401, 'REFRESH_REUSED');
+    sessions.delete(refreshToken);
+    const accessToken = id('access');
+    const nextRefreshToken = id('refresh');
+    sessions.set(accessToken, userId);
+    sessions.set(nextRefreshToken, userId);
+    saveState();
+    return ok({ access_token: accessToken, refresh_token: nextRefreshToken, token_type: 'bearer', expires_in: 900 });
+  })),
+
+  http.post('/api/auth/logout', async ({ request }) => withState(async () => {
+    const { refresh_token: refreshToken } = await request.json();
+    sessions.delete(refreshToken);
+    saveState();
+    return ok(null, 'Đã đăng xuất.');
+  })),
+
+  http.post('/api/meetings', async ({ request }) => withState(async () => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
     if (user.role !== 'teacher') return fail('Chỉ giáo viên có thể tạo phòng.', 403, 'FORBIDDEN');
 
     const body = await request.json();
-    const { name, participantMode, emotionRecognition, analysisMode } = body || {};
-    if (!isParticipantMode(participantMode)) {
+    const { status = 'ongoing', mode = 'realtime' } = body || {};
+    if (!['scheduled', 'ongoing'].includes(status) || !['realtime', 'after_session'].includes(mode)) {
       return fail('Thiết lập phòng không hợp lệ.', 422, 'VALIDATION_ERROR');
     }
 
     const createdAt = now();
-    const mode = isAnalysisMode(analysisMode) ? analysisMode : (emotionRecognition ? 'realtime' : 'batch');
     const room = {
       id: id('room'),
-      name: typeof name === 'string' && name.trim() ? name.trim() : 'Lớp học trực tuyến',
       code: nextRoomCode(),
       hostId: user.id,
-      status: 'active',
-      participantMode,
-      emotionRecognition: mode === 'realtime',
-      analysisMode: mode,
+      status: status === 'ongoing' ? 'active' : 'scheduled',
+      analysisMode: mode === 'after_session' ? 'batch' : 'realtime',
       recordingStatus: 'none',
       durationMinutes: 45,
       createdAt,
@@ -220,34 +259,40 @@ export const handlers = [
     return ok(toRoom(room), 'Tạo phòng thành công.');
   })),
 
-  http.get('/api/meetings/history', ({ request }) => withState(() => {
+  http.get('/api/meetings', ({ request }) => withState(() => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
 
+    if (user.role !== 'teacher') return fail('Chỉ giáo viên có thể xem lịch sử.', 403, 'FORBIDDEN');
     const historyList = [...rooms.values()]
       .filter((r) => r.hostId === user.id || r.hostId === 'teacher_sample')
-      .map(toRoom)
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      .map((room) => ({
+        id: room.id,
+        code: room.code,
+        mode: room.analysisMode === 'batch' ? 'after_session' : 'realtime',
+        status: room.status === 'active' ? 'ongoing' : room.status === 'closed' ? 'ended' : room.status,
+        student_id: room.participants?.find((participant) => participant.role === 'student')?.id || null,
+        created_at: room.createdAt,
+        ended_at: room.endedAt || null,
+        recording_statuses: room.recordingStatus === 'completed' ? { completed: 1 } : {},
+        analysis_status: room.recordingStatus === 'processing' ? 'processing' : room.analysisMode === 'batch' ? 'completed' : 'not_required',
+        report_url: `/meetings/${room.id}/report`,
+      }))
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 
-    return ok(historyList);
+    return ok({ items: historyList, offset: 0, limit: 20 });
   })),
 
-  http.post('/api/meetings/:roomId/recording', async ({ request, params }) => withState(async () => {
+  http.post('/api/meetings/:roomId/recordings', async ({ request, params }) => withState(async () => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
     const room = rooms.get(params.roomId);
     if (!room) return fail('Không tìm thấy phòng.', 404, 'ROOM_NOT_FOUND');
 
-    let durationSeconds = 60;
-    try {
-      const body = await request.json();
-      if (body?.durationSeconds) durationSeconds = body.durationSeconds;
-    } catch {
-      // payload may be empty or form
-    }
+    const body = await request.arrayBuffer();
+    if (!body.byteLength) return fail('Bản ghi trống.', 422, 'EMPTY_VIDEO');
 
     room.recordingStatus = 'processing';
-    room.durationMinutes = Math.max(1, Math.round(durationSeconds / 60));
     saveState();
 
     setTimeout(() => {
@@ -260,23 +305,24 @@ export const handlers = [
       });
     }, 4000);
 
-    return ok(toRoom(room), 'Bản ghi đã lưu, AI đang phân tích trong nền.');
+    return ok({
+      id: id('recording'),
+      meeting_id: room.id,
+      cloudinary_url: 'https://example.invalid/mock-recording.webm',
+      duration: 60,
+      size_bytes: body.byteLength,
+      status: room.analysisMode === 'batch' ? 'pending' : 'uploaded',
+      created_at: now(),
+    }, 'Bản ghi đã lưu, AI đang phân tích trong nền.');
   })),
 
-  http.get('/api/rooms/:roomId', ({ request, params }) => withState(() => {
+  http.get('/api/meetings/:roomId', ({ request, params }) => withState(() => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
     const room = rooms.get(params.roomId);
     if (!room) return fail('Không tìm thấy phòng.', 404, 'ROOM_NOT_FOUND');
-    if (room.status !== 'active') return fail('Phòng đã kết thúc.', 409, 'ROOM_CLOSED');
     const participant = room.participants.find((item) => item.id === user.id);
     if (!participant || participant.status === 'left') return fail('Bạn chưa tham gia phòng này.', 403, 'NOT_A_PARTICIPANT');
-    if (participant.status === 'disconnected') {
-      participant.status = 'joined';
-      participant.joinedAt = now();
-      participant.disconnectedAt = null;
-      saveState();
-    }
     return ok(toRoom(room));
   })),
 
@@ -292,7 +338,7 @@ export const handlers = [
     return ok({ iceServers, turn_configured: hasTurnServer(iceServers) });
   })),
 
-  http.post('/api/rooms/join', async ({ request }) => withState(async () => {
+  http.post('/api/meetings/join', async ({ request }) => withState(async () => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
 
@@ -302,12 +348,16 @@ export const handlers = [
     if (!room) return fail('Không tìm thấy phòng với mã này.', 404, 'ROOM_NOT_FOUND');
     if (room.status !== 'active') return fail('Phòng đã kết thúc.', 409, 'ROOM_CLOSED');
 
+    const assignedStudent = room.participants.find((item) => item.role === 'student' && item.id !== user.id);
+    if (user.role === 'student' && assignedStudent) {
+      return fail('Phòng đã có học sinh tham gia.', 403, 'FORBIDDEN');
+    }
+
     const participant = room.participants.find((item) => item.id === user.id);
     if (participant) {
       participant.status = 'joined';
       participant.joinedAt = now();
       participant.leftAt = null;
-      participant.disconnectedAt = null;
     } else {
       room.participants.push({ ...publicUser(user), status: 'joined', joinedAt: now(), leftAt: null });
     }
@@ -315,21 +365,7 @@ export const handlers = [
     return ok(toRoom(room), 'Tham gia phòng thành công.');
   })),
 
-  http.post('/api/rooms/:roomId/disconnect', ({ request, params }) => withState(() => {
-    const user = getCurrentUser(request);
-    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
-    const room = rooms.get(params.roomId);
-    if (!room || room.status !== 'active') return fail('Không tìm thấy phòng đang hoạt động.', 404, 'ROOM_NOT_FOUND');
-    const participant = room.participants.find((item) => item.id === user.id);
-    if (!participant || participant.status === 'left') return ok({ roomId: params.roomId, status: 'ignored' });
-
-    participant.status = 'disconnected';
-    participant.disconnectedAt = now();
-    saveState();
-    return ok({ roomId: room.id, participantId: user.id, status: participant.status });
-  })),
-
-  http.post('/api/rooms/:roomId/leave', ({ request, params }) => withState(() => {
+  http.post('/api/meetings/:roomId/leave', ({ request, params }) => withState(() => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
     const room = rooms.get(params.roomId);
@@ -343,7 +379,7 @@ export const handlers = [
     return ok({ roomId: room.id, participantId: user.id, status: participant.status, leftAt: participant.leftAt }, 'Đã rời phòng.');
   })),
 
-  http.post('/api/rooms/:roomId/end', ({ request, params }) => withState(() => {
+  http.post('/api/meetings/:roomId/end', ({ request, params }) => withState(() => {
     const user = getCurrentUser(request);
     if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
     const room = rooms.get(params.roomId);
@@ -363,5 +399,17 @@ export const handlers = [
     }));
     saveState();
     return ok(toRoom(room), 'Đã đóng phòng học.');
+  })),
+
+  http.post('/api/meetings/:roomId/start', ({ request, params }) => withState(() => {
+    const user = getCurrentUser(request);
+    if (!user) return fail('Bạn cần đăng nhập trước.', 401, 'UNAUTHORIZED');
+    const room = rooms.get(params.roomId);
+    if (!room) return fail('Không tìm thấy phòng.', 404, 'MEETING_NOT_FOUND');
+    if (room.hostId !== user.id || user.role !== 'teacher') return fail('Không có quyền bắt đầu phòng.', 403, 'FORBIDDEN');
+    if (room.status === 'closed') return fail('Phòng đã kết thúc.', 409, 'MEETING_ENDED');
+    room.status = 'active';
+    saveState();
+    return ok(toRoom(room));
   })),
 ];

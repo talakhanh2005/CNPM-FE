@@ -12,7 +12,7 @@ const History = () => {
   const fetchHistory = async () => {
     try {
       const data = await getMeetingHistory();
-      setHistory(data || []);
+      setHistory(data?.items || []);
     } catch (err) {
       console.error('Không thể tải lịch sử phòng:', err);
     } finally {
@@ -26,7 +26,7 @@ const History = () => {
 
   // Auto-refresh when any room is in 'processing' status
   useEffect(() => {
-    const hasProcessing = history.some((r) => r.recordingStatus === 'processing');
+    const hasProcessing = history.some((r) => ['pending', 'processing'].includes(r.analysis_status));
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
@@ -146,7 +146,7 @@ const History = () => {
             <tbody className="divide-y-[2px] divide-pure-black text-body-sm">
               {filteredHistory.map((item) => {
                 const isBatch = item.analysisMode === 'batch';
-                const isProcessing = item.recordingStatus === 'processing';
+                const isProcessing = ['pending', 'processing'].includes(item.analysis_status);
                 const isOngoing = item.status === 'active';
 
                 return (
