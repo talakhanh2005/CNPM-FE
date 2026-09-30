@@ -6,10 +6,19 @@ import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
-import { closeRoom, disconnectRoomOnPageExit, getIceConfig, getRoom, leaveRoom, saveMeetingRecording } from '../api/meetingApi';
+import useEmotionFrames from '../hooks/useEmotionFrames';
+import {
+  closeRoom,
+  disconnectRoomOnPageExit,
+  getIceConfig,
+  getRecordingStatus,
+  getRoom,
+  leaveRoom,
+  saveMeetingRecording,
+} from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { fallbackIceServers, normalizeIceServers } from '../config/iceServers';
-import { takeRetainedMediaStream } from '../utils/mediaSession';
+import { retainExistingMediaStream, takeRetainedMediaStream } from '../utils/mediaSession';
 
 const defaultMediaState = { mic: false, speaker: true, camera: false };
 
@@ -39,6 +48,8 @@ const Meeting = () => {
   const exitGuardArmedRef = useRef(false);
   const mediaRecorderRef = useRef(null);
   const recordTimerRef = useRef(null);
+  const recordingChunksRef = useRef([]);
+  const recordingMimeTypeRef = useRef('video/webm');
 
   const [localStream, setLocalStream] = useState(null);
   const [mediaState, setMediaState] = useState(initialMediaState);
@@ -64,25 +75,22 @@ const Meeting = () => {
     try {
       let streamToRecord = streamRef.current;
       if (!streamToRecord || streamToRecord.getTracks().length === 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 360;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#111111';
-          ctx.fillRect(0, 0, 640, 360);
-        }
-        streamToRecord = canvas.captureStream ? canvas.captureStream(15) : null;
+        throw new Error('NO_MEDIA');
       }
-
-      if (window.MediaRecorder && streamToRecord) {
-        const recorder = new MediaRecorder(streamToRecord);
-        recorder.ondataavailable = () => {};
-        recorder.start(1000);
-        mediaRecorderRef.current = recorder;
-      }
-    } catch (e) {
-      console.warn('MediaRecorder fallback to timer mode', e);
+      const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+        .find((candidate) => window.MediaRecorder?.isTypeSupported?.(candidate));
+      if (!window.MediaRecorder || !mimeType) throw new Error('UNSUPPORTED_RECORDING');
+      recordingChunksRef.current = [];
+      recordingMimeTypeRef.current = mimeType;
+      const recorder = new MediaRecorder(streamToRecord, { mimeType });
+      recorder.ondataavailable = (event) => {
+        if (event.data?.size) recordingChunksRef.current.push(event.data);
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+    } catch {
+      setToastMessage('Không thể bắt đầu ghi hình. Hãy bật camera hoặc microphone.');
+      return;
     }
 
     setIsRecording(true);
@@ -94,26 +102,41 @@ const Meeting = () => {
   };
 
   const handleStopRecord = async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {
-        // ignore
-      }
-      mediaRecorderRef.current = null;
-    }
+    const recorder = mediaRecorderRef.current;
     clearInterval(recordTimerRef.current);
+    recordTimerRef.current = null;
     setIsRecording(false);
-
+    if (!recorder || recorder.state === 'inactive') return;
+    const recordingBlob = await new Promise((resolve) => {
+      recorder.addEventListener('stop', () => resolve(new Blob(recordingChunksRef.current, { type: recordingMimeTypeRef.current })), { once: true });
+      recorder.stop();
+    });
+    mediaRecorderRef.current = null;
+    recordingChunksRef.current = [];
     try {
-      if (room?.id) {
-        await saveMeetingRecording(room.id, { durationSeconds: recordingSeconds || 45 });
+      if (!room?.id || !recordingBlob.size) throw new Error('EMPTY_RECORDING');
+      const recording = await saveMeetingRecording(room.id, recordingBlob, recordingMimeTypeRef.current.split(';')[0]);
+      setToastMessage('Bản ghi đã tải lên, AI đang phân tích trong nền.');
+      void pollRecording(recording.id);
+      setTimeout(() => setToastMessage(''), 5000);
+    } catch (error) {
+      setToastMessage(getApiErrorMessage(error, 'Không thể tải bản ghi lên.'));
+      setTimeout(() => setToastMessage(''), 5000);
+    }
+  };
+
+  const pollRecording = async (recordingId) => {
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      const status = await getRecordingStatus(recordingId);
+      if (status.status === 'completed') {
+        setToastMessage('AI đã phân tích xong bản ghi.');
+        return;
       }
-      setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
-      setTimeout(() => setToastMessage(''), 5000);
-    } catch {
-      setToastMessage('Không thể lưu bản ghi. Vui lòng thử lại.');
-      setTimeout(() => setToastMessage(''), 5000);
+      if (status.status === 'failed') {
+        setToastMessage(status.error_message || 'AI không thể phân tích bản ghi.');
+        return;
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 2000));
     }
   };
 
@@ -169,6 +192,7 @@ const Meeting = () => {
       || takeRetainedMediaStream(navigationState?.media?.mediaSessionId);
 
     if (transferredStream) {
+      retainExistingMediaStream(transferredStream);
       transferredStreamRef.current = transferredStream;
       streamRef.current = transferredStream;
       setLocalStream(transferredStream);
@@ -181,7 +205,14 @@ const Meeting = () => {
       return () => { active = false; };
     }
 
-    getMedia({ video: initialMediaState.camera, audio: initialMediaState.mic })
+    getMedia({
+      video: initialMediaState.camera
+        ? (cameraDeviceId ? { deviceId: { exact: cameraDeviceId } } : true)
+        : false,
+      audio: initialMediaState.mic
+        ? (micDeviceId ? { deviceId: { exact: micDeviceId } } : true)
+        : false,
+    })
       .then((stream) => {
         if (!active) {
           stream.getTracks().forEach((track) => track.stop());
@@ -204,7 +235,7 @@ const Meeting = () => {
     return () => {
       active = false;
     };
-  }, [initialMediaState, navigationState?.media?.mediaSessionId]);
+  }, [cameraDeviceId, initialMediaState, micDeviceId, navigationState?.media?.mediaSessionId]);
 
   useEffect(() => {
     streamCleanupArmedRef.current = false;
@@ -257,6 +288,14 @@ const Meeting = () => {
     onStatus: setConnectionStatus,
   });
 
+  useEmotionFrames({
+    stream: localStream,
+    enabled: mediaState.camera && connectionStatus === 'connected',
+    isStudent: user?.role === 'student',
+    meetingId: room?.id,
+    send,
+  });
+
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
@@ -282,10 +321,8 @@ const Meeting = () => {
 
   useEffect(() => {
     if (connectionStatus !== 'connected') return;
-    send({
-      type: 'media.status',
-      payload: { camera: mediaState.camera, mic: mediaState.mic },
-    });
+    send({ type: 'CAMERA_STATUS', payload: { enabled: mediaState.camera } });
+    send({ type: 'MIC_STATUS', payload: { enabled: mediaState.mic } });
   }, [connectionStatus, mediaState.camera, mediaState.mic, send]);
 
   const applyMediaState = async (targetState) => {

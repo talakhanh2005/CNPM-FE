@@ -11,8 +11,8 @@ const History = () => {
 
   const fetchHistory = async () => {
     try {
-      const data = await getMeetingHistory();
-      setHistory(data || []);
+      const data = await getMeetingHistory({ offset: 0, limit: 100 });
+      setHistory(data?.items || []);
     } catch (err) {
       console.error('Không thể tải lịch sử phòng:', err);
     } finally {
@@ -38,13 +38,13 @@ const History = () => {
 
   const filteredHistory = history.filter((item) => {
     const matchesSearch =
-      (item.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.name || item.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (item.code || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesFilter =
       filterMode === 'all' ||
-      (filterMode === 'realtime' && item.analysisMode === 'realtime') ||
-      (filterMode === 'batch' && item.analysisMode === 'batch');
+      (filterMode === 'realtime' && item.mode === 'realtime') ||
+      (filterMode === 'batch' && item.mode === 'after_session');
 
     return matchesSearch && matchesFilter;
   });
@@ -145,9 +145,11 @@ const History = () => {
             </thead>
             <tbody className="divide-y-[2px] divide-pure-black text-body-sm">
               {filteredHistory.map((item) => {
-                const isBatch = item.analysisMode === 'batch';
-                const isProcessing = item.recordingStatus === 'processing';
-                const isOngoing = item.status === 'active';
+                const mode = item.mode || (item.analysisMode === 'batch' ? 'after_session' : 'realtime');
+                const analysisStatus = item.analysis_status || item.recordingStatus;
+                const isBatch = mode === 'after_session';
+                const isProcessing = analysisStatus === 'processing' || analysisStatus === 'pending';
+                const isOngoing = item.status === 'ongoing' || item.status === 'active';
 
                 return (
                   <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
@@ -161,7 +163,7 @@ const History = () => {
                     {/* Name */}
                     <td className="p-space-md border-r-[2px] border-pure-black">
                       <div className="font-bold text-on-surface text-body-md">
-                        {item.name || 'Lớp học trực tuyến'}
+                        {item.name || `Phòng ${item.code}`}
                       </div>
                       <div className="text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[16px]">group</span>

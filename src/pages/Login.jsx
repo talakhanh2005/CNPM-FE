@@ -6,7 +6,7 @@ import { getApiErrorMessage } from '../api/axiosClient';
 
 const Login = () => {
   const [role, setRole] = useState('student');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -17,19 +17,19 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!username.trim()) {
-      setError('Vui lòng nhập tên đăng nhập.');
+    if (!email.trim()) {
+      setError('Vui lòng nhập email.');
       return;
     }
-    if (password.length < 4) {
-      setError('Mật khẩu cần ít nhất 4 ký tự.');
+    if (password.length < 8) {
+      setError('Mật khẩu cần ít nhất 8 ký tự.');
       return;
     }
 
     try {
       setLoading(true);
       setError('');
-      await login({ role, username: username.trim(), password });
+      await login({ email: email.trim(), password });
       navigate('/', { replace: true });
     } catch (err) {
       setError(getApiErrorMessage(err, 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'));
@@ -146,17 +146,17 @@ const Login = () => {
               onSubmit={handleLogin}
             >
               <div className="flex flex-col gap-space-xs">
-                <label className="text-label-md font-bold text-on-surface" htmlFor="username">
-                  Tên đăng nhập
+                <label className="text-label-md font-bold text-on-surface" htmlFor="email">
+                  Email
                 </label>
                 <input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Nhập tên đăng nhập (vd: giaovien, hocsinh)"
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Nhập email"
                   required
                   className="w-full px-space-md py-space-sm bg-off-white border-[3px] border-pure-black rounded-none text-body-md text-on-surface focus:bg-bright-yellow focus:outline-none focus:shadow-[4px_4px_0px_#000000] transition-all"
                 />

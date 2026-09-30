@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
+import { getMeetingReport } from '../api/reportApi';
 
-const timelineData = [
+const fallbackTimelineData = [
   { time: '00m', focus: 75, happy: 15, tired: 10, distracted: 0 },
   { time: '15m', focus: 65, happy: 30, tired: 5, distracted: 0 },
   { time: '30m', focus: 65, happy: 10, tired: 0, distracted: 25 },
@@ -63,14 +64,28 @@ const EmotionReport = () => {
   const location = useLocation();
   const meeting = location.state?.meeting;
   const [search, setSearch] = useState('');
+  const [report, setReport] = useState(null);
+  const [reportError, setReportError] = useState('');
 
-  const className = meeting?.name || 'Toán 12A1 - Ôn thi đại học';
+  useEffect(() => {
+    if (!meeting?.id) return undefined;
+    let active = true;
+    getMeetingReport(meeting.id, { source: 'auto', offset: 0, limit: 500 })
+      .then((data) => { if (active) setReport(data); })
+      .catch((error) => { if (active) setReportError(error?.response?.data?.message || 'Không thể tải báo cáo.'); });
+    return () => { active = false; };
+  }, [meeting?.id]);
+
+  const className = meeting?.name || (meeting?.code ? `Phòng ${meeting.code}` : 'Báo cáo cảm xúc');
   const roomCode = meeting?.code || 'ML-8842';
-  const isBatch = meeting ? meeting.analysisMode === 'batch' : true;
+  const isBatch = meeting ? meeting.mode === 'after_session' : true;
   const duration = meeting?.durationMinutes ? `${meeting.durationMinutes} phút` : '90 phút';
   const createdDate = meeting?.createdAt
     ? new Date(meeting.createdAt).toLocaleDateString('vi-VN')
     : '24/05/2024';
+  const timelineData = report?.timeline?.length
+    ? report.timeline.map((point) => ({ time: `${Math.round(point.timestamp || 0)}s`, focus: point.emotion === 'neutral' ? 100 : 0, happy: point.emotion === 'happy' ? 100 : 0, tired: point.emotion === 'sad' ? 100 : 0, distracted: point.emotion === 'angry' ? 100 : 0 }))
+    : fallbackTimelineData;
 
   const filteredStudents = studentsReport.filter((s) =>
     s.name.toLowerCase().includes(search.toLowerCase())
@@ -79,7 +94,8 @@ const EmotionReport = () => {
   return (
     <DashboardLayout activeTab="bao-cao-cam-xuc">
       <div className="flex flex-col w-full max-w-7xl mx-auto p-gutter md:p-margin pb-24 font-body">
-        {/* Header Session Info */}
+         {reportError && <p className="mb-4 p-3 border-[2px] border-pure-black bg-tertiary-container font-bold">{reportError}</p>}
+         {/* Header Session Info */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-xl border-b-[3px] border-pure-black pb-space-lg">
           <div>
             <div className="flex items-center gap-space-sm mb-space-xs flex-wrap">

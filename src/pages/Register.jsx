@@ -7,7 +7,7 @@ import { getApiErrorMessage } from '../api/axiosClient';
 const Register = () => {
   const [role, setRole] = useState('student');
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
@@ -19,14 +19,14 @@ const Register = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    const trimmedUsername = username.trim();
+    const trimmedEmail = email.trim();
 
-    if (!trimmedUsername || trimmedUsername.length < 3) {
-      setError('Tên đăng nhập cần ít nhất 3 ký tự.');
+    if (!trimmedEmail || !trimmedEmail.includes('@')) {
+      setError('Vui lòng nhập email hợp lệ.');
       return;
     }
-    if (password.length < 4) {
-      setError('Mật khẩu cần ít nhất 4 ký tự.');
+    if (password.length < 8) {
+      setError('Mật khẩu cần ít nhất 8 ký tự.');
       return;
     }
     if (password !== confirmPassword) {
@@ -43,7 +43,8 @@ const Register = () => {
       setError('');
       await register({
         role,
-        username: trimmedUsername,
+        email: trimmedEmail,
+        full_name: fullName.trim(),
         password,
       });
       navigate('/login', { replace: true });
@@ -209,9 +210,9 @@ const Register = () => {
                   type="text"
                   required
                   autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  placeholder="Tên đăng nhập (ít nhất 3 ký tự)..."
+                   value={email}
+                   onChange={(e) => setEmail(e.target.value)}
+                   placeholder="Địa chỉ email..."
                   className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
                 />
               </div>

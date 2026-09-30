@@ -8,21 +8,32 @@ const isLiveTrack = (track) => track?.readyState !== 'ended';
 const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackIceServers }) => {
   const peersRef = useRef(new Map());
   const localStreamRef = useRef(localStream);
+  const iceServersRef = useRef(iceServers);
+  const remoteParticipantsRef = useRef([]);
   const [remoteParticipants, setRemoteParticipants] = useState([]);
 
   useLayoutEffect(() => {
     localStreamRef.current = localStream;
   }, [localStream]);
 
+  useLayoutEffect(() => {
+    iceServersRef.current = iceServers;
+  }, [iceServers]);
+
+  useEffect(() => {
+    remoteParticipantsRef.current = remoteParticipants;
+  }, [remoteParticipants]);
+
   const updateParticipant = useCallback((participant, patch = {}) => {
+    if (!participant?.id || participant.id === user?.id) return;
     setRemoteParticipants((current) => {
       const existing = current.find((item) => item.id === participant.id);
-      const username = participant.username || existing?.name || fallbackName;
+      const username = participant.full_name || participant.username || existing?.name || fallbackName;
       const next = {
         ...existing,
         id: participant.id,
         name: username,
-        initials: participant.username?.[0]?.toUpperCase() || existing?.initials || 'U',
+        initials: (participant.full_name || participant.username)?.[0]?.toUpperCase() || existing?.initials || 'U',
         role: participant.role || existing?.role,
         ...patch,
       };
@@ -30,7 +41,7 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
         ? current.map((item) => item.id === participant.id ? next : item)
         : [...current, next];
     });
-  }, []);
+  }, [user?.id]);
 
   const removePeer = useCallback((peerId) => {
     const peer = peersRef.current.get(peerId);
@@ -58,8 +69,8 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
       await peer.connection.setLocalDescription(offer);
       const description = peer.connection.localDescription || offer;
       send({
-        type: 'signal.offer',
-        targetId: peer.participant.id,
+        type: 'OFFER',
+        target_id: peer.participant.id,
         payload: { type: description.type, sdp: description.sdp },
       });
     } catch {
@@ -105,7 +116,7 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
   }, []);
 
   const createPeer = useCallback((participant) => {
-    if (!participant?.id) return null;
+    if (!participant?.id || participant.id === user?.id) return null;
     const existing = peersRef.current.get(participant.id);
     if (existing) {
       existing.participant = { ...existing.participant, ...participant };
@@ -114,7 +125,7 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
     }
     if (!window.RTCPeerConnection) return null;
 
-    const connection = new RTCPeerConnection({ iceServers });
+    const connection = new RTCPeerConnection({ iceServers: iceServersRef.current });
     const peer = {
       connection,
       participant,
@@ -141,7 +152,10 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
     });
 
     connection.onicecandidate = ({ candidate }) => {
-      if (candidate) send({ type: 'signal.ice', targetId: participant.id, payload: candidate.toJSON() });
+      if (candidate) send({ type: 'ICE_CANDIDATE', target_id: participant.id, payload: candidate.toJSON() });
+    };
+    connection.onnegotiationneeded = () => {
+      queueOffer(peer);
     };
     connection.ontrack = ({ streams, track }) => {
       const remoteStream = peer.remoteStream || streams[0] || new MediaStream();
@@ -177,7 +191,7 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
     };
     updateParticipant(participant);
     return peer;
-  }, [iceServers, removePeer, send, updateParticipant, user?.id]);
+  }, [queueOffer, removePeer, send, updateParticipant, user?.id]);
 
   useEffect(() => {
     if (!localStream) return undefined;
@@ -204,36 +218,74 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
   }, []);
 
   const handleEvent = useCallback(async (event) => {
-    if (!event || event.senderId === user?.id) return;
+    const senderId = event?.sender_id || event?.senderId;
+    if (!event) return;
 
-    if (event.type === 'participant.joined') {
-      send({
-        type: 'media.status',
-        targetId: event.senderId,
-        payload: { camera: mediaState.camera, mic: mediaState.mic },
+    if (event.type === 'JOIN') {
+      // The initial JOIN is sent by this socket and contains the already
+      // connected peers. It must be processed before ignoring self-events.
+      const peers = event.peers || [];
+      peers.forEach((participant) => {
+        const participantId = participant.user_id || participant.id;
+        if (!participantId || participantId === user?.id) return;
+        const peer = createPeer({
+          id: participantId,
+          role: participant.role,
+          full_name: participant.full_name,
+        });
+        if (peer?.senders.size) queueOffer(peer);
       });
-      const peer = createPeer(event.payload.participant);
+      if (senderId && senderId !== user?.id) {
+        send({
+          type: 'CAMERA_STATUS',
+          payload: { enabled: mediaState.camera },
+        });
+        const peer = createPeer({ id: event.sender_id, role: event.role, full_name: event.full_name });
+        if (peer?.senders.size) queueOffer(peer);
+      }
+      return;
+    }
+    if (senderId === user?.id) return;
+    if (event.type === 'PRESENT') {
+      const participantId = event.sender_id || event.user_id;
+      const peer = participantId === user?.id ? null : createPeer({
+        id: participantId,
+        role: event.role,
+        full_name: event.full_name,
+      });
       if (peer?.senders.size) queueOffer(peer);
       return;
     }
-    if (event.type === 'participant.present') {
-      const peer = createPeer(event.payload.participant);
-      if (peer?.senders.size) queueOffer(peer);
+    if (event.type === 'LEAVE') {
+      removePeer(event.sender_id || event.senderId || event.participant_id);
       return;
     }
-    if (event.type === 'participant.left') {
-      removePeer(event.payload.participantId);
-      return;
-    }
-    if (event.type === 'media.status') {
-      updateParticipant({ id: event.senderId }, {
-        cameraOn: event.payload.camera,
-        micOn: event.payload.mic,
+    if (event.type === 'CAMERA_STATUS' || event.type === 'MIC_STATUS') {
+      const existing = remoteParticipantsRef.current.find((item) => item.id === senderId);
+      updateParticipant({
+        id: senderId,
+        full_name: event.full_name || existing?.name,
+        role: event.role,
+      }, {
+        ...(event.type === 'CAMERA_STATUS' ? { cameraOn: event.payload.enabled } : {}),
+        ...(event.type === 'MIC_STATUS' ? { micOn: event.payload.enabled } : {}),
       });
       return;
     }
-    if (event.type === 'signal.offer') {
-      const peer = createPeer({ id: event.senderId });
+    if (event.type === 'EMOTION' || event.type === 'FRAME_RESULT') {
+      updateParticipant({ id: event.student_id || senderId }, {
+        emotion: event.emotion,
+        confidence: event.confidence,
+        faceDetected: event.face_detected,
+      });
+      return;
+    }
+    if (event.type === 'OFFER') {
+      const peer = createPeer({
+        id: senderId,
+        full_name: event.full_name,
+        role: event.role,
+      });
       if (!peer) return;
 
       // Perfect negotiation: when both sides enable a track together, exactly
@@ -260,8 +312,8 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
         await peer.connection.setLocalDescription(answer);
         const description = peer.connection.localDescription || answer;
         send({
-          type: 'signal.answer',
-          targetId: peer.participant.id,
+          type: 'ANSWER',
+          target_id: peer.participant.id,
           payload: { type: description.type, sdp: description.sdp },
         });
       } catch {
@@ -272,8 +324,8 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
       if (peer.needsNegotiation) queueOffer(peer);
       return;
     }
-    if (event.type === 'signal.answer') {
-      const peer = peersRef.current.get(event.senderId);
+    if (event.type === 'ANSWER') {
+      const peer = peersRef.current.get(senderId);
       if (!peer) return;
       peer.isSettingRemoteAnswerPending = true;
       try {
@@ -289,8 +341,12 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
       if (peer.needsNegotiation) queueOffer(peer);
       return;
     }
-    if (event.type === 'signal.ice') {
-      const peer = createPeer({ id: event.senderId });
+    if (event.type === 'ICE_CANDIDATE') {
+      const peer = createPeer({
+        id: senderId,
+        full_name: event.full_name,
+        role: event.role,
+      });
       if (!peer || peer.ignoreOffer) return;
       if (!peer.hasRemoteDescription) {
         peer.pendingCandidates.push(event.payload);
@@ -302,7 +358,7 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
         // ICE can belong to an offer discarded during a simultaneous update.
       }
     }
-  }, [createPeer, flushCandidates, mediaState.camera, mediaState.mic, queueOffer, removePeer, send, updateParticipant, user?.id]);
+  }, [createPeer, flushCandidates, mediaState.camera, queueOffer, removePeer, send, updateParticipant, user?.id]);
 
   useEffect(() => () => {
     peersRef.current.forEach((peer) => {

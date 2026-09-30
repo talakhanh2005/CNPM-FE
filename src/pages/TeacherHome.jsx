@@ -5,6 +5,7 @@ import NewRoom from '../components/NewRoom';
 import History from '../components/HistoryRoom';
 import JoinRoom from '../components/JoinRoom';
 import useAuth from '../hooks/useAuth';
+import { getMeetingHistory } from '../api/meetingApi';
 
 const sampleClassrooms = [
   {
@@ -74,6 +75,7 @@ const TeacherHome = () => {
   const [joinRoomCode, setJoinRoomCode] = useState(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(location.state?.tab === 'phong-hoc');
   const [searchQuery, setSearchQuery] = useState('');
+  const [classrooms, setClassrooms] = useState([]);
 
   useEffect(() => {
     if (location.state?.tab) {
@@ -83,6 +85,14 @@ const TeacherHome = () => {
       }
     }
   }, [location.state]);
+
+  useEffect(() => {
+    let active = true;
+    getMeetingHistory({ offset: 0, limit: 100 })
+      .then((data) => { if (active) setClassrooms(data?.items || []); })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   const filteredScheduled = scheduledLessons.filter(
     (l) =>
@@ -165,7 +175,7 @@ const TeacherHome = () => {
                 <span className="text-on-surface-variant text-label-sm font-mono">Học kỳ II - 2024/2025</span>
               </div>
               <h1 className="text-headline-xl-mobile md:text-headline-xl font-headline font-bold text-on-surface tracking-tight">
-                Xin chào, Thầy/Cô {user?.username || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
+                Xin chào, Thầy/Cô {user?.full_name || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
               </h1>
               <p className="text-body-md text-on-surface-variant max-w-xl">
                 Hệ thống AI đang hỗ trợ giám sát phòng học và phân tích mức độ tập trung của học sinh theo thời gian thực. Khởi tạo phòng mới hoặc kiểm tra báo cáo cảm xúc.
@@ -215,7 +225,7 @@ const TeacherHome = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
-              {sampleClassrooms.map((item) => (
+              {(classrooms.length ? classrooms : sampleClassrooms).map((item) => (
                 <div
                   key={item.id}
                   className="bg-off-white border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] flex flex-col justify-between gap-space-md"
@@ -232,11 +242,11 @@ const TeacherHome = () => {
 
                   <div className="flex flex-col gap-space-xs">
                     <h3 className="text-headline-sm font-headline font-bold text-on-surface">
-                      {item.title}
+                       {item.title || `Phòng ${item.code}`}
                     </h3>
                     <p className="text-body-sm text-on-surface-variant flex items-center gap-2">
                       <span className="material-symbols-outlined text-[18px]">group</span>
-                      {item.studentsCount} học sinh tham gia
+                       {item.participants?.length || item.studentsCount || 0} học sinh tham gia
                     </p>
                   </div>
 

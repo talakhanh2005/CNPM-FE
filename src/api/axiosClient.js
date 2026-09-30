@@ -9,20 +9,29 @@ const axiosClient = axios.create({
 });
 
 axiosClient.interceptors.request.use((config) => {
-  const token = sessionStorage.getItem('mockSession');
+  const token = sessionStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
-axiosClient.interceptors.response.use((response) => response.data);
+axiosClient.interceptors.response.use((response) => {
+  const envelope = response.data;
+  return envelope && Object.prototype.hasOwnProperty.call(envelope, 'data')
+    ? envelope.data
+    : envelope;
+});
 
 export const clearSession = () => {
-  sessionStorage.removeItem('mockSession');
-  sessionStorage.removeItem('mockUser');
+  sessionStorage.removeItem('accessToken');
+  sessionStorage.removeItem('refreshToken');
+  sessionStorage.removeItem('currentUser');
 };
 
 export const getApiErrorMessage = (error, fallback = 'Đã có lỗi xảy ra.') => (
-  error?.response?.data?.message || error?.message || fallback
+  error?.response?.data?.message
+    || error?.response?.data?.detail
+    || error?.message
+    || fallback
 );
 
 export default axiosClient;

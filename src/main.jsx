@@ -16,6 +16,18 @@ const render = () => createRoot(document.getElementById('root')).render(
 );
 
 const enableMocking = async () => {
+  if (import.meta.env.VITE_USE_MOCKS !== 'true') {
+    // Remove an older MSW registration so it cannot intercept live API calls.
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(
+        registrations
+          .filter((registration) => registration.active?.scriptURL.includes('mockServiceWorker.js'))
+          .map((registration) => registration.unregister()),
+      );
+    }
+    return;
+  }
   const { worker } = await import('./mocks/browser');
   await worker.start({
     onUnhandledRequest: 'bypass',

@@ -1,18 +1,12 @@
 import { useEffect, useRef } from 'react';
 
-const mockEmotionStatus = [
-  { text: '🟢 Tập trung 92%', color: 'text-emerald-700 bg-emerald-100' },
-  { text: '🟡 Hứng thú 88%', color: 'text-amber-700 bg-amber-100' },
-  { text: '🟢 Tập trung 95%', color: 'text-emerald-700 bg-emerald-100' },
-  { text: '🟠 Cần chú ý', color: 'text-orange-700 bg-orange-100' },
-  { text: '🟢 Tập trung 90%', color: 'text-emerald-700 bg-emerald-100' },
-];
-
-const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, index = 0 }) => {
+const ParticipantTile = ({ participant, speakerOn, speakerDeviceId }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
-  const emotion = mockEmotionStatus[index % mockEmotionStatus.length];
+  const emotion = participant.emotion
+    ? `${participant.emotion} ${Math.round((participant.confidence || 0) * 100)}%`
+    : 'Đang chờ AI';
 
   useEffect(() => {
     const video = videoRef.current;
@@ -66,7 +60,7 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, index = 0 })
 
       {/* Top Left: Emotion Badge */}
       <div className="absolute top-2 left-2 z-10 bg-surface/90 border-[2px] border-pure-black px-2.5 py-0.5 text-label-sm font-bold text-on-surface flex items-center gap-1 shadow-[2px_2px_0px_#000000]">
-        <span>{emotion.text}</span>
+        <span>{emotion}</span>
       </div>
 
       {/* Top Right: Mic & Cam Icons */}

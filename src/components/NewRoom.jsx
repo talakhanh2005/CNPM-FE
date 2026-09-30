@@ -27,7 +27,7 @@ const NewRoom = ({ onClose }) => {
   const navigate = useNavigate();
   const [roomName, setRoomName] = useState('Toán 12A1 - Giải tích');
   const [participantMode, setParticipantMode] = useState('free');
-  const [analysisMode, setAnalysisMode] = useState('batch');
+  const [analysisMode, setAnalysisMode] = useState('realtime');
   const [lobbyMedia, setLobbyMedia] = useState({ camera: false, mic: false, stream: null });
   const [isExiting, setIsExiting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
@@ -40,10 +40,8 @@ const NewRoom = ({ onClose }) => {
       setIsCreating(true);
       setError('');
       const room = await createRoom({
-        name: roomName.trim() || 'Lớp học trực tuyến',
-        participantMode,
-        analysisMode,
-        emotionRecognition: analysisMode === 'realtime',
+        status: 'ongoing',
+        mode: analysisMode === 'batch' ? 'after_session' : 'realtime',
       });
       const mediaSessionId = retainMediaStream(lobbyMedia.stream);
       navigate(`/meeting/${room.id}`, {

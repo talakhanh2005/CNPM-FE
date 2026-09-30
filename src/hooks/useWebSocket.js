@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { MockRealtimeSocket } from '../mocks/mockRealtimeSocket';
 
 const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
   const socketRef = useRef(null);
@@ -10,25 +9,44 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
     callbacksRef.current = { onEvent, onStatus };
   }, [onEvent, onStatus]);
 
-  const send = useCallback((message) => socketRef.current?.send(message) || false, []);
+  const send = useCallback((message) => {
+    if (socketRef.current?.readyState !== WebSocket.OPEN) return false;
+    socketRef.current.send(JSON.stringify(message));
+    return true;
+  }, []);
 
   useEffect(() => {
     if (!meetingId || !user) return undefined;
-    const socket = new MockRealtimeSocket({ roomId: meetingId, user });
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${protocol}//${window.location.host}/ws/meetings/${meetingId}`);
     socketRef.current = socket;
 
-    const unsubscribe = socket.subscribe((event) => {
-      if (event.type === 'socket.open') {
-        setStatus('connected');
-        callbacksRef.current.onStatus?.('connected');
-        socket.send({ type: 'auth', payload: { userId: user.id } });
-        return;
+    socket.onopen = () => {
+      setStatus('connected');
+      callbacksRef.current.onStatus?.('connected');
+      socket.send(JSON.stringify({
+        type: 'AUTH',
+        token: sessionStorage.getItem('accessToken'),
+      }));
+    };
+    socket.onmessage = ({ data }) => {
+      try {
+        const envelope = JSON.parse(data);
+        callbacksRef.current.onEvent?.(envelope.data || envelope);
+      } catch {
+        callbacksRef.current.onStatus?.('error');
       }
-      callbacksRef.current.onEvent?.(event);
-    });
+    };
+    socket.onerror = () => {
+      setStatus('error');
+      callbacksRef.current.onStatus?.('error');
+    };
+    socket.onclose = () => {
+      setStatus('disconnected');
+      callbacksRef.current.onStatus?.('disconnected');
+    };
 
     return () => {
-      unsubscribe();
       socket.close();
       if (socketRef.current === socket) socketRef.current = null;
     };

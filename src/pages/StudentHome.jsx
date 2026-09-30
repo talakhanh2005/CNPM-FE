@@ -223,6 +223,7 @@ const StudentDashBoard = () => {
   const [historySubjectFilter, setHistorySubjectFilter] = useState('all');
   const [historySearch, setHistorySearch] = useState('');
   const [selectedSessionDetail, setSelectedSessionDetail] = useState(null);
+  const [classrooms] = useState([]);
 
   useEffect(() => {
     if (location.state?.tab) {
@@ -239,7 +240,8 @@ const StudentDashBoard = () => {
 
   // Filtered Classrooms
   const filteredClassrooms = useMemo(() => {
-    return mockStudentClassrooms.filter((cls) => {
+    const source = classrooms.length ? classrooms : mockStudentClassrooms;
+    return source.filter((cls) => {
       const matchStatus =
         classroomStatusFilter === 'all' ||
         (classroomStatusFilter === 'live' && cls.isLive) ||
@@ -256,7 +258,7 @@ const StudentDashBoard = () => {
 
       return matchStatus && matchSubject && matchSearch;
     });
-  }, [classroomStatusFilter, classroomSubjectFilter, classroomSearch]);
+  }, [classrooms, classroomStatusFilter, classroomSubjectFilter, classroomSearch]);
 
   // Filtered History
   const filteredHistory = useMemo(() => {
@@ -470,7 +472,7 @@ const StudentDashBoard = () => {
                 <span className="text-on-surface-variant text-label-sm font-mono">AI Tutor Trực tuyến</span>
               </div>
               <h1 className="text-headline-xl font-headline font-bold text-on-surface">
-                Xin chào, {user?.username || 'Nguyễn Văn An'}! 🎓
+                Xin chào, {user?.full_name || 'Nguyễn Văn An'}! 🎓
               </h1>
               <p className="text-body-lg text-on-surface-variant">
                 Trạng thái cảm xúc học tập: <strong className="text-secondary font-bold">Tập trung cao độ (94%)</strong> - AI ghi nhận bạn đang tiếp thu bài học rất hiệu quả.

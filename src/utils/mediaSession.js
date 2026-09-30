@@ -21,4 +21,9 @@ export const takeRetainedMediaStream = (id) => {
   return stream;
 };
 
+export const retainExistingMediaStream = (stream) => {
+  if (stream) retainedStreams.add(stream);
+  return stream;
+};
+
 export const isMediaStreamRetained = (stream) => Boolean(stream) && retainedStreams.has(stream);

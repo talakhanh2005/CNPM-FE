@@ -1,5 +1,32 @@
 # CNPM_NC
 
+## Backend Integration Status
+
+The frontend is connected to the backend through `src/api/axiosClient.js`, but
+the current frontend implementation is not yet compatible with the live BE
+contract. The UI is partly built around mock data and a mock realtime socket.
+
+### Compatibility Summary
+
+| Area | Status | Finding |
+| --- | --- | --- |
+| API base URL | Partial | Axios uses `/api`; Vite must proxy this to `http://localhost:8000`. |
+| Registration | Not compatible | FE sends `username`; BE requires `email`, `full_name`, `password`, and `role`. |
+| Login | Not compatible | FE sends `username` and expects `token`; BE requires `email` and returns `access_token`. |
+| Session token | Not compatible | FE stores `response.data.token`; BE returns `response.data.access_token`. |
+| Create room | Not compatible | FE calls `POST /rooms`; BE exposes `POST /meetings`. |
+| Load room | Not compatible | FE calls `/rooms/{id}`; BE exposes `/meetings/{meeting_id}`. |
+| Join room | Not compatible | FE calls `POST /rooms/join`; BE exposes `POST /meetings/join` or `/meetings/{id}/join`. |
+| Leave room | Not compatible | FE calls `/rooms/{id}/leave`; BE exposes `/meetings/{meeting_id}/leave`. |
+| Meeting history | Not compatible | FE calls `/meetings/history`; BE uses `GET /meetings`. |
+| Recording | Not compatible | FE posts JSON to `/recording`; BE expects video bytes at `/recordings` and creates analysis jobs. |
+| Realtime socket | Not compatible | FE uses `MockRealtimeSocket`, lowercase `auth`, and `userId`; BE requires a real WebSocket, `AUTH`, and JWT token. |
+| Emotion frames | Missing | FE does not capture a video frame or send `frame_base64` to the BE. |
+| Emotion reports | Missing | `src/api/reportApi.js` is empty; report page has no live report API integration. |
+
+The backend routes and payloads are authoritative. The frontend should be
+updated before it is used against the live services.
+
 ## Cấu trúc project
 
 ```text
@@ -22,20 +49,3 @@ src/
 npm install
 npm run dev
 ```
-
-## Cấu hình WebRTC
-
-Khi mở meeting, FE gọi `GET /meetings/{meetingId}/ice-config` và dùng `iceServers` do API trả về. Mock local triển khai cùng contract này. Nếu endpoint lỗi hoặc trả danh sách rỗng, FE fallback về cấu hình trong `.env.local`; mặc định dùng STUN công khai `stun:stun.l.google.com:19302`.
-
-```dotenv
-VITE_STUN_URLS=stun:stun.example.com:3478
-VITE_TURN_URLS=turn:turn.example.com:3478?transport=udp,turns:turn.example.com:5349
-VITE_TURN_USERNAME=your-turn-username
-VITE_TURN_CREDENTIAL=your-turn-credential
-```
-
-TURN fallback chỉ được thêm khi có đủ URL, username và credential. Biến `VITE_*` được đóng gói vào mã frontend, vì vậy chỉ dùng TURN fallback cho local/staging. Production cấu hình `ICE_SERVERS` ở backend và không đặt credential dài hạn trong FE.
-
-`VITE_API_URL` mặc định là `/api` để MSW local tiếp tục hoạt động. Khi chuẩn bị nối backend/deploy, đặt URL API phù hợp trong file môi trường của deployment; code WebRTC không cần thay đổi.
-
-MSW mặc định bật trong development và tắt trong production build. Có thể override bằng `VITE_ENABLE_MOCKS=true/false`. Vì vậy `npm run dev` vẫn chạy độc lập như hiện tại, còn bản deploy sẽ không vô tình chặn REST request bằng dữ liệu mock.
