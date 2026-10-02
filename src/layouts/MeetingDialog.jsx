@@ -1,3 +1,5 @@
+import EmotionPanel from '../components/EmotionPanel';
+
 const dialogTitles = {
   chat: 'Trò chuyện trực tiếp',
   emotion: 'Phân tích AI Cảm xúc',
@@ -11,6 +13,7 @@ const MeetingDialog = ({
   onAnimationEnd,
   userRole,
   connectionStatus,
+  emotion,
 }) => {
   if (!activePanel) return null;
 
@@ -44,67 +47,25 @@ const MeetingDialog = ({
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-5 flex flex-col gap-4 font-body">
         {activePanel === 'chat' && (
-          <div className="flex flex-col h-full justify-between gap-4">
-            <div className="space-y-3">
-              <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-label-sm font-bold text-secondary">Hệ thống AI</span>
-                  <span className="text-xs font-mono text-outline">Vừa xong</span>
-                </div>
-                <p className="text-body-sm text-on-surface">
-                  Chào mừng bạn đến với lớp học trực tuyến Neo-Learn AI. Hãy giữ trật tự và tập trung nghe giảng!
-                </p>
-              </div>
-            </div>
-
-            <div className="border-t-[2px] border-pure-black pt-3">
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  placeholder="Nhập tin nhắn..."
-                  className="flex-1 px-3 py-2 bg-surface-container-lowest border-[2px] border-pure-black text-body-sm focus:bg-bright-yellow outline-none"
-                />
-                <button
-                  type="button"
-                  className="px-3 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] cursor-pointer"
-                >
-                  Gửi
-                </button>
-              </div>
-            </div>
+          <div className="border-[2px] border-dashed border-pure-black bg-surface-container-low p-5 text-center">
+            <span className="material-symbols-outlined text-[40px]">chat_error</span>
+            <p className="mt-2 font-bold">Chat chưa được backend hỗ trợ</p>
+            <p className="mt-1 text-body-sm text-on-surface-variant">
+              Tính năng này sẽ được bật khi có API hoặc WebSocket chat thật.
+            </p>
           </div>
         )}
 
         {activePanel === 'emotion' && (
-          <div className="space-y-4">
-            <div className="bg-primary-container border-[3px] border-pure-black p-4 shadow-[4px_4px_0px_#000000]">
-              <div className="flex items-center justify-between">
-                <span className="text-label-sm font-bold uppercase">Mức độ tập trung</span>
-                <span className="font-headline font-bold text-headline-sm text-secondary">92%</span>
-              </div>
-              <div className="w-full bg-surface-container border-[2px] border-pure-black h-3.5 mt-2 overflow-hidden">
-                <div className="bg-secondary h-full w-[92%]" />
-              </div>
-            </div>
-
-            <div className="bg-surface border-[2px] border-pure-black p-3.5 shadow-[2px_2px_0px_#000000] space-y-2">
-              <span className="text-label-sm font-bold uppercase text-on-surface-variant block">
-                Phân tích trạng thái
-              </span>
-              <div className="flex items-center justify-between text-body-sm">
-                <span>Cảm xúc thị giác:</span>
-                <span className="font-bold text-emerald-600">🟢 Tích cực, chăm chú</span>
-              </div>
-              <div className="flex items-center justify-between text-body-sm">
-                <span>Chuyển động đầu:</span>
-                <span className="font-bold">Ổn định</span>
-              </div>
-              <div className="flex items-center justify-between text-body-sm">
-                <span>Tương tác bài học:</span>
-                <span className="font-bold text-secondary">Cao</span>
-              </div>
-            </div>
-          </div>
+          <EmotionPanel
+            isTeacher={userRole === 'teacher'}
+            samples={emotion?.samples}
+            latestSample={emotion?.latestSample}
+            loading={emotion?.loading}
+            error={emotion?.error}
+            captureStatus={emotion?.captureStatus}
+            onRefresh={emotion?.onRefresh}
+          />
         )}
 
         {activePanel === 'settings' && (
@@ -124,7 +85,7 @@ const MeetingDialog = ({
             </div>
 
             <div className="p-3 bg-surface-container-low border-[2px] border-pure-black text-xs text-on-surface-variant leading-relaxed">
-              Luồng âm thanh và hình ảnh sử dụng WebRTC native. Local dùng realtime mock; khi tắt mock, tín hiệu được điều phối qua WebSocket backend.
+              Luồng âm thanh và hình ảnh sử dụng WebRTC native; signaling được điều phối qua WebSocket backend.
             </div>
           </div>
         )}

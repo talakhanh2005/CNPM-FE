@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import useAuth from '../hooks/useAuth';
 import { getApiErrorMessage } from '../api/axiosClient';
+import { isValidEmail, validatePassword } from '../utils/validation';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -16,12 +17,13 @@ const Login = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!email.trim()) {
-      setError('Vui lòng nhập email.');
+    if (!isValidEmail(email)) {
+      setError('Email không hợp lệ. Ví dụ đúng: ten@example.com.');
       return;
     }
-    if (password.length < 8) {
-      setError('Mật khẩu cần ít nhất 8 ký tự.');
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
 

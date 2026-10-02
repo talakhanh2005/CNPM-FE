@@ -4,6 +4,7 @@ import CameraGrid from '../components/CameraGrid';
 import MeetingControls from '../components/MeetingControls';
 import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
+import useEmotionMonitoring from '../hooks/useEmotionMonitoring';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
 import { closeRoom, getIceConfig, getRoom, leaveRoom, uploadMeetingRecording } from '../api/meetingApi';
@@ -63,30 +64,28 @@ const Meeting = () => {
 
   const handleStartRecord = () => {
     try {
-      let streamToRecord = streamRef.current;
-      if (!streamToRecord || streamToRecord.getTracks().length === 0) {
-        const canvas = document.createElement('canvas');
-        canvas.width = 640;
-        canvas.height = 360;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#111111';
-          ctx.fillRect(0, 0, 640, 360);
-        }
-        streamToRecord = canvas.captureStream ? canvas.captureStream(15) : null;
-      }
+      const studentStream = remoteParticipants.find(
+        (participant) => participant.role === 'student' && participant.stream?.getTracks().length,
+      )?.stream;
+      if (!studentStream) throw new Error('Chưa nhận được video của học sinh để ghi hình.');
+      if (!window.MediaRecorder) throw new Error('Trình duyệt không hỗ trợ ghi hình.');
 
-      if (window.MediaRecorder && streamToRecord) {
-        const recorder = new MediaRecorder(streamToRecord);
-        recordingChunksRef.current = [];
-        recorder.ondataavailable = ({ data }) => {
-          if (data?.size) recordingChunksRef.current.push(data);
-        };
-        recorder.start(1000);
-        mediaRecorderRef.current = recorder;
-      }
+      const preferredMime = [
+        'video/webm;codecs=vp8,opus',
+        'video/webm;codecs=vp8',
+        'video/webm',
+      ].find((mime) => MediaRecorder.isTypeSupported?.(mime));
+      const recorder = new MediaRecorder(studentStream, preferredMime ? { mimeType: preferredMime } : undefined);
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = ({ data }) => {
+        if (data?.size) recordingChunksRef.current.push(data);
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
     } catch (e) {
-      console.warn('MediaRecorder fallback to timer mode', e);
+      setToastMessage(e?.message || 'Không thể bắt đầu ghi hình.');
+      window.setTimeout(() => setToastMessage(''), 5000);
+      return;
     }
 
     setIsRecording(true);
@@ -253,6 +252,13 @@ const Meeting = () => {
     iceServers: iceConfig.servers,
     send: (message) => sendRef.current(message),
   });
+  const emotion = useEmotionMonitoring({
+    meetingId: room?.id,
+    enabled: Boolean(room?.emotionRecognition),
+    isTeacher,
+    localStream,
+    cameraOn: mediaState.camera,
+  });
   const { send, close } = useWebSocket({
     meetingId: iceConfigReady ? room?.id : null,
     user,
@@ -264,6 +270,10 @@ const Meeting = () => {
       }
       if (event?.type === 'socket.error') {
         setRoomError(event.message || 'Kết nối phòng gặp lỗi.');
+        return;
+      }
+      if (event?.type === 'EMOTION' || event?.type === 'FRAME_RESULT') {
+        emotion.addSample(event);
         return;
       }
       void handleEvent(event);
@@ -399,16 +409,22 @@ const Meeting = () => {
   };
 
   const participants = [
-    ...remoteParticipants,
+    ...remoteParticipants.map((participant) => ({
+      ...participant,
+      emotion: emotion.latestByStudent[participant.id],
+    })),
     {
       id: user?.id || 'local-user',
       name: user?.full_name || user?.username || 'Bạn',
       initials: (user?.full_name || user?.username)?.[0]?.toUpperCase() || 'B',
+      role: user?.role,
       isLocal: true,
       stream: localStream,
       cameraOn: mediaState.camera,
+      emotion: emotion.latestByStudent[user?.id] || (!isTeacher ? emotion.latestSample : null),
     },
   ];
+  const latestEmotion = emotion.latestSample?.emotion || 'Chưa có dữ liệu';
 
   if (roomLoading && !room) {
     return (
@@ -508,12 +524,12 @@ const Meeting = () => {
               </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
-              <span className="text-on-surface-variant font-mono">Tập trung TB:</span>
-              <span className="font-bold text-emerald-600">91%</span>
+              <span className="text-on-surface-variant font-mono">Emotion log:</span>
+              <span className="font-bold text-emerald-600">{emotion.samples.length} mẫu</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
-              <span className="text-on-surface-variant font-mono">Cần hỗ trợ:</span>
-              <span className="font-bold text-tertiary">0 em</span>
+              <span className="text-on-surface-variant font-mono">Mới nhất:</span>
+              <span className="font-bold text-tertiary">{latestEmotion}</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
               <span className="text-on-surface-variant font-mono">AI Realtime:</span>
@@ -561,6 +577,14 @@ const Meeting = () => {
           isVisible={dialogVisible}
           connectionStatus={connectionStatus}
           userRole={user?.role}
+          emotion={{
+            samples: emotion.samples,
+            latestSample: emotion.latestSample,
+            loading: emotion.loading,
+            error: emotion.error,
+            captureStatus: emotion.captureStatus,
+            onRefresh: emotion.refreshLogs,
+          }}
           onClose={() => setDialogVisible(false)}
           onAnimationEnd={() => {
             if (!dialogVisible) setDialogPanel(null);

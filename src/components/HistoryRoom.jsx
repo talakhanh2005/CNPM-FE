@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetingHistory } from '../api/meetingApi';
+import { getApiErrorMessage } from '../api/axiosClient';
 
 const History = () => {
   const navigate = useNavigate();
@@ -8,33 +9,40 @@ const History = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState('all');
+  const [error, setError] = useState('');
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     try {
       const data = await getMeetingHistory();
       setHistory(data?.items || []);
+      setError('');
     } catch (err) {
-      console.error('Không thể tải lịch sử phòng:', err);
+      setError(getApiErrorMessage(err, 'Không thể tải lịch sử phòng.'));
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    const timer = window.setTimeout(() => { void fetchHistory(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchHistory]);
+
+  const hasProcessing = useMemo(
+    () => history.some((room) => ['pending', 'processing'].includes(room.analysis_status)),
+    [history],
+  );
 
   // Auto-refresh when any room is in 'processing' status
   useEffect(() => {
-    const hasProcessing = history.some((r) => ['pending', 'processing'].includes(r.analysis_status));
     if (!hasProcessing) return;
 
-    const interval = setInterval(() => {
-      fetchHistory();
+    const interval = window.setInterval(() => {
+      void fetchHistory();
     }, 2500);
 
-    return () => clearInterval(interval);
-  }, [history]);
+    return () => window.clearInterval(interval);
+  }, [fetchHistory, hasProcessing]);
 
   const filteredHistory = history.filter((item) => {
     const matchesSearch =
@@ -59,6 +67,13 @@ const History = () => {
     if (!isoString) return 'Hôm nay';
     const d = new Date(isoString);
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+  };
+
+  const formatDuration = (meeting) => {
+    if (!meeting.createdAt || !meeting.endedAt) return '—';
+    const durationMs = new Date(meeting.endedAt).getTime() - new Date(meeting.createdAt).getTime();
+    if (!Number.isFinite(durationMs) || durationMs < 0) return '—';
+    return `${Math.max(1, Math.round(durationMs / 60000))} phút`;
   };
 
   return (
@@ -117,6 +132,7 @@ const History = () => {
 
       {/* Main History Table */}
       <div className="bg-off-white border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] overflow-x-auto">
+        {error && <div className="border-b-[3px] border-pure-black bg-tertiary-container p-4 font-bold text-on-tertiary-container">{error}</div>}
         {loading ? (
           <div className="p-12 text-center text-body-lg font-bold">
             Đang tải danh sách lịch sử phòng học...
@@ -188,7 +204,7 @@ const History = () => {
                     <td className="p-space-md border-r-[2px] border-pure-black font-mono">
                       <div className="font-bold">{formatDate(item.createdAt)}</div>
                       <div className="text-on-surface-variant text-label-sm">
-                        {item.durationMinutes ? `${item.durationMinutes} phút` : '45 phút'}
+                        {formatDuration(item)}
                       </div>
                     </td>
 

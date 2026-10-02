@@ -1,8 +1,3 @@
-const mockSetting = import.meta.env.VITE_ENABLE_MOCKS;
-
-export const shouldEnableMocks = mockSetting === 'true'
-  || (mockSetting !== 'false' && import.meta.env.DEV);
-
 const stripTrailingSlash = (value) => value.replace(/\/+$/, '');
 
 export const apiBaseUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || '/api');

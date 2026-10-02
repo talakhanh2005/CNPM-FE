@@ -1,405 +1,203 @@
-import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
+import { getMeetingHistory } from '../api/meetingApi';
+import { getMeetingReport } from '../api/reportApi';
+import { getApiErrorMessage } from '../api/axiosClient';
 
-const timelineData = [
-  { time: '00m', focus: 75, happy: 15, tired: 10, distracted: 0 },
-  { time: '15m', focus: 65, happy: 30, tired: 5, distracted: 0 },
-  { time: '30m', focus: 65, happy: 10, tired: 0, distracted: 25 },
-  { time: '45m', focus: 40, happy: 0, tired: 20, distracted: 40 },
-  { time: '60m', focus: 60, happy: 30, tired: 0, distracted: 10 },
-  { time: '75m', focus: 70, happy: 15, tired: 15, distracted: 0 },
-  { time: '90m', focus: 50, happy: 45, tired: 5, distracted: 0 },
-];
+const emotionLabels = {
+  happy: 'Happy',
+  neutral: 'Neutral',
+  sad: 'Sad',
+  angry: 'Angry',
+  surprised: 'Surprised',
+  fearful: 'Fearful',
+  disgusted: 'Disgusted',
+  fail_detection: 'Không nhận diện được',
+};
 
-const studentsReport = [
-  {
-    initials: 'NA',
-    name: 'Nguyễn An',
-    color: 'bg-primary-fixed',
-    attendance: '90/90 phút (100%)',
-    focus: 80,
-    happy: 15,
-    distracted: 5,
-    statusText: 'Tập trung cao độ',
-    notes: 'Hoàn thành tốt tất cả bài tập trắc nghiệm và câu hỏi mở rộng.',
-  },
-  {
-    initials: 'TB',
-    name: 'Trần Bình',
-    color: 'bg-secondary-fixed text-on-secondary',
-    attendance: '85/90 phút (94%)',
-    focus: 50,
-    happy: 30,
-    tired: 20,
-    statusText: 'Hơi mệt ở cuối giờ',
-    notes: 'Đã được AI nhắc nhở tập trung lúc phút thứ 50, sau đó hồi phục tốt.',
-  },
-  {
-    initials: 'LH',
-    name: 'Lê Hoàng',
-    color: 'bg-tertiary-fixed',
-    attendance: '90/90 phút (100%)',
-    focus: 70,
-    happy: 25,
-    distracted: 5,
-    statusText: 'Tích cực phát biểu',
-    notes: 'Dẫn đầu bảng xếp hạng mini-game và chủ động tương tác với giáo viên.',
-  },
-  {
-    initials: 'PM',
-    name: 'Phạm Mai',
-    color: 'bg-surface-container-highest',
-    attendance: '78/90 phút (86%)',
-    focus: 40,
-    happy: 20,
-    tired: 40,
-    statusText: 'Mất tập trung giữa giờ',
-    notes: 'Cần phụ đạo thêm phần phương pháp giải bài tập hình học không gian.',
-  },
-];
+const emotionColors = {
+  happy: 'bg-emerald-500',
+  neutral: 'bg-royal-blue',
+  sad: 'bg-blue-300',
+  angry: 'bg-vivid-red',
+  surprised: 'bg-bright-yellow',
+  fearful: 'bg-purple-400',
+  disgusted: 'bg-lime-600',
+};
+
+const formatTimestamp = (value, timeBasis) => {
+  if (timeBasis === 'recording_seconds' || typeof value === 'number') {
+    const total = Math.max(0, Number(value) || 0);
+    const minutes = Math.floor(total / 60);
+    const seconds = Math.floor(total % 60);
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString('vi-VN');
+};
 
 const EmotionReport = () => {
   const location = useLocation();
-  const meeting = location.state?.meeting;
-  const [search, setSearch] = useState('');
+  const navigate = useNavigate();
+  const initialMeeting = location.state?.meeting || null;
+  const [meetings, setMeetings] = useState(initialMeeting ? [initialMeeting] : []);
+  const [selectedMeetingId, setSelectedMeetingId] = useState(initialMeeting?.id || '');
+  const [report, setReport] = useState(null);
+  const [loadingMeetings, setLoadingMeetings] = useState(true);
+  const [loadingReport, setLoadingReport] = useState(false);
+  const [error, setError] = useState('');
 
-  const className = meeting?.name || 'Toán 12A1 - Ôn thi đại học';
-  const roomCode = meeting?.code || 'ML-8842';
-  const isBatch = meeting ? meeting.analysisMode === 'batch' : true;
-  const duration = meeting?.durationMinutes ? `${meeting.durationMinutes} phút` : '90 phút';
-  const createdDate = meeting?.createdAt
-    ? new Date(meeting.createdAt).toLocaleDateString('vi-VN')
-    : '24/05/2024';
+  useEffect(() => {
+    let active = true;
+    getMeetingHistory({ offset: 0, limit: 100 })
+      .then((result) => {
+        if (!active) return;
+        const items = result?.items || [];
+        setMeetings(items);
+        setSelectedMeetingId((current) => current || items[0]?.id || '');
+      })
+      .catch((requestError) => {
+        if (active) setError(getApiErrorMessage(requestError, 'Không thể tải danh sách phòng học.'));
+      })
+      .finally(() => { if (active) setLoadingMeetings(false); });
+    return () => { active = false; };
+  }, []);
 
-  const filteredStudents = studentsReport.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase())
+  const loadReport = useCallback(async () => {
+    if (!selectedMeetingId) {
+      setReport(null);
+      return;
+    }
+    setLoadingReport(true);
+    try {
+      const result = await getMeetingReport(selectedMeetingId, {
+        source: 'auto',
+        offset: 0,
+        limit: 500,
+      });
+      setReport(result);
+      setError('');
+    } catch (requestError) {
+      setReport(null);
+      setError(getApiErrorMessage(requestError, 'Không thể tải báo cáo cảm xúc.'));
+    } finally {
+      setLoadingReport(false);
+    }
+  }, [selectedMeetingId]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void loadReport(); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadReport]);
+
+  const selectedMeeting = meetings.find((meeting) => meeting.id === selectedMeetingId) || initialMeeting;
+  const distribution = useMemo(
+    () => Object.entries(report?.distribution || {}).sort((left, right) => right[1] - left[1]),
+    [report?.distribution],
   );
+  const dominantEmotion = distribution[0]?.[0] || null;
 
   return (
-    <DashboardLayout activeTab="bao-cao-cam-xuc">
-      <div className="flex flex-col w-full max-w-7xl mx-auto p-gutter md:p-margin pb-24 font-body">
-        {/* Header Session Info */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-xl border-b-[3px] border-pure-black pb-space-lg">
+    <DashboardLayout activeTab="bao-cao" onTabChange={(tab) => navigate(tab === 'dashboard' ? '/teacher' : '/teacher', { state: { tab } })}>
+      <div className="flex w-full flex-col gap-space-lg p-gutter pb-24 md:p-margin">
+        <header className="flex flex-col justify-between gap-4 border-[3px] border-pure-black bg-off-white p-5 shadow-[6px_6px_0px_#000000] md:flex-row md:items-end">
           <div>
-            <div className="flex items-center gap-space-sm mb-space-xs flex-wrap">
-              <span className="px-2.5 py-0.5 bg-primary text-on-primary text-label-sm font-bold uppercase border border-pure-black">
-                Báo cáo sau buổi học
-              </span>
-              {isBatch ? (
-                <span className="px-2.5 py-0.5 bg-royal-blue text-white text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]">
-                  <span className="material-symbols-outlined text-[14px]">psychology</span>
-                  AI đánh giá sau (Video Recording)
-                </span>
-              ) : (
-                <span className="px-2.5 py-0.5 bg-bright-yellow text-pure-black text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]">
-                  <span className="material-symbols-outlined text-[14px]">speed</span>
-                  Phân tích Realtime
-                </span>
-              )}
-              <span className="text-body-sm text-on-surface-variant font-mono font-bold">
-                Ngày {createdDate}
-              </span>
-            </div>
-            <h1 className="text-headline-lg font-headline font-bold text-on-surface tracking-tight">
-              {className}
-            </h1>
-            <p className="text-body-md text-on-surface-variant mt-1">
-              Thời lượng: <strong className="text-on-surface font-bold">{duration}</strong> | Phòng học:{' '}
-              <strong className="text-on-surface font-mono font-bold">#{roomCode}</strong> | Giáo viên:{' '}
-              <strong className="text-on-surface font-bold">Thầy Hoàng (Giáo viên)</strong>
-            </p>
+            <span className="text-label-sm font-bold uppercase text-on-surface-variant">Báo cáo từ backend</span>
+            <h1 className="font-headline text-headline-lg font-bold">Phân tích cảm xúc</h1>
+            <p className="text-body-sm text-on-surface-variant">Không sử dụng dữ liệu mẫu. Chọn một phòng để xem kết quả đã lưu.</p>
           </div>
-
-          <div className="flex items-center gap-space-sm flex-wrap">
-            <button
-              type="button"
-              onClick={() => alert('Đã sao chép liên kết báo cáo vào bộ nhớ tạm!')}
-              className="px-space-md py-space-sm bg-surface-container border-[3px] border-pure-black text-on-surface font-label-md font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] transition-all flex items-center gap-space-xs cursor-pointer"
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <select
+              value={selectedMeetingId}
+              onChange={(event) => setSelectedMeetingId(event.target.value)}
+              disabled={loadingMeetings}
+              className="min-w-64 border-[3px] border-pure-black bg-surface px-3 py-2 font-bold"
             >
-              <span className="material-symbols-outlined text-[20px]">share</span>
-              Chia sẻ báo cáo
-            </button>
-            <button
-              type="button"
-              onClick={() => alert('Đang tạo file PDF báo cáo buổi học...')}
-              className="px-space-md py-space-sm bg-bright-yellow text-pure-black border-[3px] border-pure-black font-label-md font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] transition-all flex items-center gap-space-xs cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[20px]">download</span>
-              Xuất PDF / Excel
+              {!meetings.length && <option value="">Chưa có phòng học</option>}
+              {meetings.map((meeting) => (
+                <option key={meeting.id} value={meeting.id}>#{meeting.code} · {meeting.analysisMode === 'realtime' ? 'Realtime' : 'Sau buổi học'}</option>
+              ))}
+            </select>
+            <button type="button" onClick={() => void loadReport()} disabled={!selectedMeetingId || loadingReport} className="border-[3px] border-pure-black bg-bright-yellow px-4 py-2 font-bold shadow-[3px_3px_0px_#000000] disabled:opacity-50">
+              {loadingReport ? 'Đang tải...' : 'Làm mới'}
             </button>
           </div>
-        </div>
+        </header>
 
-        {/* 3 Metric Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg mb-space-xl">
-          {/* Card 1 */}
-          <div className="bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
-              <span className="material-symbols-outlined text-[120px]">groups</span>
-            </div>
-            <span className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
-              Tổng số học sinh
-            </span>
-            <div className="flex items-baseline gap-space-sm mt-space-xs">
-              <span className="text-headline-xl font-headline font-bold text-on-surface">42</span>
-              <span className="text-body-sm text-secondary font-bold bg-secondary-fixed px-1.5 py-0.5 border border-pure-black">
-                100% có mặt
-              </span>
-            </div>
-            <p className="text-body-sm text-on-surface-variant mt-space-sm">
-              Không có học sinh vắng mặt hoặc bỏ tiết giữa chừng.
-            </p>
-          </div>
+        {error && <div className="border-[3px] border-pure-black bg-tertiary-container p-4 font-bold text-on-tertiary-container">{error}</div>}
 
-          {/* Card 2 */}
-          <div className="bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
-              <span className="material-symbols-outlined text-[120px]">psychology</span>
-            </div>
-            <span className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
-              Tỉ lệ tập trung trung bình
-            </span>
-            <div className="flex items-baseline gap-space-sm mt-space-xs">
-              <span className="text-headline-xl font-headline font-bold text-on-surface">84%</span>
-              <span className="text-body-sm text-pure-black font-bold bg-bright-yellow px-1.5 py-0.5 border border-pure-black">
-                +5.2% so với buổi trước
-              </span>
-            </div>
-            <div className="w-full bg-surface-container-highest h-3 mt-space-sm border-[2px] border-pure-black overflow-hidden">
-              <div className="bg-bright-yellow h-full w-[84%] border-r-[2px] border-pure-black" />
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div className="bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-6 opacity-10 pointer-events-none">
-              <span className="material-symbols-outlined text-[120px]">sentiment_satisfied</span>
-            </div>
-            <span className="text-label-sm font-bold uppercase tracking-wider text-on-surface-variant">
-              Cảm xúc chủ đạo
-            </span>
-            <div className="flex items-center gap-space-sm mt-space-xs">
-              <span className="text-headline-md font-headline font-bold text-on-surface">
-                Tập trung &amp; Vui vẻ
-              </span>
-            </div>
-            <div className="flex items-center gap-2 mt-space-md">
-              <span className="px-2 py-0.5 bg-royal-blue text-on-primary text-label-sm font-bold border border-pure-black">
-                Tập trung (65%)
-              </span>
-              <span className="px-2 py-0.5 bg-bright-yellow text-on-surface text-label-sm font-bold border border-pure-black">
-                Vui vẻ (25%)
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-space-lg mb-space-xl">
-          {/* Timeline Bar Chart */}
-          <div className="lg:col-span-2 bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] flex flex-col justify-between">
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm mb-space-md">
-                <div>
-                  <h2 className="text-headline-sm font-headline font-bold text-on-surface">
-                    Biểu đồ diễn biến cảm xúc theo thời gian
-                  </h2>
-                  <p className="text-body-sm text-on-surface-variant">
-                    Phân tích trạng thái học sinh qua các mốc 15 phút của buổi học
-                  </p>
+        {!selectedMeetingId ? (
+          <div className="border-[3px] border-dashed border-pure-black bg-surface-container-low p-10 text-center">Chưa có phòng học để tạo báo cáo.</div>
+        ) : loadingReport && !report ? (
+          <div className="border-[3px] border-pure-black bg-surface p-10 text-center font-bold">Đang tải báo cáo...</div>
+        ) : report ? (
+          <>
+            <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ['Mã phòng', selectedMeeting?.code ? `#${selectedMeeting.code}` : '—'],
+                ['Số mẫu', report.sample_count ?? 0],
+                ['Cảm xúc chủ đạo', dominantEmotion ? emotionLabels[dominantEmotion] || dominantEmotion : 'Chưa có'],
+                ['Nguồn', report.source === 'realtime' ? 'Realtime' : report.source === 'batch' ? 'Recording' : 'Chưa có'],
+              ].map(([label, value]) => (
+                <div key={label} className="border-[3px] border-pure-black bg-surface-container-lowest p-4 shadow-[4px_4px_0px_#000000]">
+                  <span className="text-label-sm font-bold uppercase text-on-surface-variant">{label}</span>
+                  <strong className="mt-1 block font-headline text-headline-md">{value}</strong>
                 </div>
-                <div className="flex flex-wrap items-center gap-3 text-label-sm font-bold">
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-bright-yellow inline-block border border-pure-black" />{' '}
-                    Vui
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-royal-blue inline-block border border-pure-black" />{' '}
-                    Tập trung
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-vivid-red inline-block border border-pure-black" />{' '}
-                    Mệt mỏi
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-[#888888] inline-block border border-pure-black" />{' '}
-                    Mất tập trung
-                  </span>
-                </div>
-              </div>
+              ))}
+            </section>
 
-              {/* Stacked Chart Canvas */}
-              <div className="w-full h-64 bg-surface-bright border-[2px] border-pure-black p-4 flex flex-col justify-end relative my-space-md">
-                <div className="absolute inset-0 flex flex-col justify-between p-4 pointer-events-none opacity-20">
-                  <div className="w-full border-b border-dashed border-pure-black" />
-                  <div className="w-full border-b border-dashed border-pure-black" />
-                  <div className="w-full border-b border-dashed border-pure-black" />
-                  <div className="w-full border-b border-dashed border-pure-black" />
-                </div>
-
-                <div className="flex items-end justify-between h-48 gap-3 z-10">
-                  {timelineData.map((slot) => (
-                    <div
-                      key={slot.time}
-                      className="flex-1 flex flex-col items-center gap-1 h-full justify-end group"
-                    >
-                      <div className="w-full flex flex-col h-full justify-end gap-0.5 border-[2px] border-pure-black bg-surface overflow-hidden shadow-xs">
-                        {slot.distracted > 0 && (
-                          <div className="bg-[#888888] w-full" style={{ height: `${slot.distracted}%` }} />
-                        )}
-                        {slot.tired > 0 && (
-                          <div className="bg-vivid-red w-full" style={{ height: `${slot.tired}%` }} />
-                        )}
-                        {slot.happy > 0 && (
-                          <div className="bg-bright-yellow w-full" style={{ height: `${slot.happy}%` }} />
-                        )}
-                        {slot.focus > 0 && (
-                          <div className="bg-royal-blue w-full" style={{ height: `${slot.focus}%` }} />
-                        )}
+            <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              <div className="border-[3px] border-pure-black bg-surface p-5 shadow-[4px_4px_0px_#000000]">
+                <h2 className="mb-4 font-headline text-headline-sm font-bold">Phân bố cảm xúc</h2>
+                {distribution.length === 0 ? (
+                  <p className="text-on-surface-variant">Backend chưa có mẫu cảm xúc cho phòng này.</p>
+                ) : (
+                  <div className="space-y-4">
+                    {distribution.map(([emotion, percent]) => (
+                      <div key={emotion}>
+                        <div className="mb-1 flex justify-between font-bold"><span>{emotionLabels[emotion] || emotion}</span><span>{Number(percent).toFixed(1)}%</span></div>
+                        <div className="h-5 overflow-hidden border-[2px] border-pure-black bg-surface-container">
+                          <div className={`h-full ${emotionColors[emotion] || 'bg-outline'}`} style={{ width: `${Math.min(100, Math.max(0, Number(percent)))}%` }} />
+                        </div>
                       </div>
-                      <span className="text-label-sm font-mono font-bold mt-1">{slot.time}</span>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
-            </div>
 
-            {/* AI Insight Box */}
-            <div className="bg-primary-container p-3 border-[2px] border-pure-black text-on-primary-container text-body-sm flex items-center gap-space-sm mt-space-md">
-              <span className="material-symbols-outlined text-[24px]">lightbulb</span>
-              <span>
-                <strong>Nhận xét AI:</strong> Mức độ tập trung giảm nhẹ ở phút thứ 45 do bài tập khó. Học sinh nhanh chóng lấy lại trạng thái tập trung cao nhờ bài tập tương tác sau đó.
-              </span>
-            </div>
-          </div>
-
-          {/* Overall Emotion Distribution */}
-          <div className="bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] flex flex-col justify-between">
-            <div>
-              <h2 className="text-headline-sm font-headline font-bold text-on-surface mb-space-xs">
-                Phân bổ cảm xúc tổng thể
-              </h2>
-              <p className="text-body-sm text-on-surface-variant mb-space-lg">
-                Tỉ lệ phần trăm thời gian hiển thị trên toàn buổi học
-              </p>
-              <div className="space-y-space-md">
-                <div>
-                  <div className="flex justify-between text-label-md font-bold mb-1">
-                    <span>Tập trung</span>
-                    <span className="text-royal-blue">65%</span>
-                  </div>
-                  <div className="w-full bg-surface-container-highest h-4 border-[2px] border-pure-black p-0.5">
-                    <div className="bg-royal-blue h-full w-[65%]" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-label-md font-bold mb-1">
-                    <span>Vui vẻ</span>
-                    <span className="text-pure-black">20%</span>
-                  </div>
-                  <div className="w-full bg-surface-container-highest h-4 border-[2px] border-pure-black p-0.5">
-                    <div className="bg-bright-yellow h-full w-[20%]" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-label-md font-bold mb-1">
-                    <span>Mệt mỏi</span>
-                    <span className="text-vivid-red">10%</span>
-                  </div>
-                  <div className="w-full bg-surface-container-highest h-4 border-[2px] border-pure-black p-0.5">
-                    <div className="bg-vivid-red h-full w-[10%]" />
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-label-md font-bold mb-1">
-                    <span>Mất tập trung</span>
-                    <span className="text-on-surface-variant">5%</span>
-                  </div>
-                  <div className="w-full bg-surface-container-highest h-4 border-[2px] border-pure-black p-0.5">
-                    <div className="bg-[#888888] h-full w-[5%]" />
-                  </div>
-                </div>
+              <div className="border-[3px] border-pure-black bg-primary-container p-5 shadow-[4px_4px_0px_#000000]">
+                <h2 className="font-headline text-headline-sm font-bold">Trạng thái phân tích</h2>
+                <dl className="mt-4 space-y-3 text-body-sm">
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Trạng thái</dt><dd>{report.status}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Tổng timeline</dt><dd>{report.timeline_total}</dd></div>
+                  <div className="flex justify-between gap-4"><dt className="font-bold">Cơ sở thời gian</dt><dd>{report.time_basis}</dd></div>
+                </dl>
+                <p className="mt-5 border-t-[2px] border-pure-black pt-4 text-body-sm">{report.summary}</p>
               </div>
-            </div>
+            </section>
 
-            <div className="mt-space-lg pt-space-md border-t-2 border-pure-black">
-              <div className="flex items-center justify-between text-body-sm">
-                <span className="text-on-surface-variant font-bold">Chỉ số tương tác AI:</span>
-                <strong className="text-on-surface font-headline font-bold text-headline-sm">
-                  9.2 / 10
-                </strong>
+            <section className="border-[3px] border-pure-black bg-surface shadow-[4px_4px_0px_#000000]">
+              <div className="border-b-[3px] border-pure-black bg-surface-container p-4"><h2 className="font-headline text-headline-sm font-bold">Timeline cảm xúc</h2></div>
+              <div className="max-h-[520px] overflow-auto">
+                <table className="w-full border-collapse text-left">
+                  <thead className="sticky top-0 bg-off-white"><tr className="border-b-[2px] border-pure-black"><th className="p-3">Thời gian</th><th className="p-3">Cảm xúc</th><th className="p-3">Độ tin cậy</th><th className="p-3">Trạng thái khuôn mặt</th></tr></thead>
+                  <tbody className="divide-y divide-pure-black">
+                    {(report.timeline || []).map((point, index) => (
+                      <tr key={point.sample_id || point.frame_id || `${point.timestamp}-${index}`}>
+                        <td className="p-3 font-mono">{formatTimestamp(point.timestamp, report.time_basis)}</td>
+                        <td className="p-3 font-bold">{emotionLabels[point.emotion] || point.emotion}</td>
+                        <td className="p-3">{Math.round((point.confidence || 0) * 100)}%</td>
+                        <td className="p-3">{point.face_detected ? 'Đã nhận diện' : point.failure_reason || 'Không nhận diện'}</td>
+                      </tr>
+                    ))}
+                    {!report.timeline?.length && <tr><td colSpan="4" className="p-8 text-center text-on-surface-variant">Chưa có dữ liệu timeline.</td></tr>}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Student Table */}
-        <div className="bg-surface-container-low border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000]">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
-            <div>
-              <h2 className="text-headline-sm font-headline font-bold text-on-surface">
-                Bảng chi tiết học sinh
-              </h2>
-              <p className="text-body-sm text-on-surface-variant">
-                Thống kê mức độ tham gia và cảm xúc của từng cá nhân (42 học sinh)
-              </p>
-            </div>
-            <div className="flex items-center gap-space-sm">
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="px-space-md py-2 bg-surface border-[2px] border-pure-black text-body-sm outline-none focus:bg-bright-yellow shadow-[2px_2px_0px_#000000]"
-                placeholder="Tìm kiếm học sinh..."
-                type="text"
-              />
-            </div>
-          </div>
-
-          <div className="overflow-x-auto border-[2px] border-pure-black">
-            <table className="w-full text-left border-collapse bg-surface-bright">
-              <thead>
-                <tr className="bg-surface-container border-b-[2px] border-pure-black text-label-md font-bold">
-                  <th className="p-space-md border-r border-pure-black">Học sinh</th>
-                  <th className="p-space-md border-r border-pure-black">Thời gian có mặt</th>
-                  <th className="p-space-md border-r border-pure-black">Thanh cảm xúc chủ đạo</th>
-                  <th className="p-space-md">Ghi chú AI / Giáo viên</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-pure-black text-body-sm">
-                {filteredStudents.map((st, idx) => (
-                  <tr key={idx} className="hover:bg-surface-container-high transition-colors">
-                    <td className="p-space-md border-r border-pure-black font-bold flex items-center gap-2">
-                      <div
-                        className={`w-8 h-8 rounded-full border border-pure-black flex items-center justify-center text-label-sm font-bold ${st.color}`}
-                      >
-                        {st.initials}
-                      </div>
-                      {st.name}
-                    </td>
-                    <td className="p-space-md border-r border-pure-black font-mono font-bold">
-                      {st.attendance}
-                    </td>
-                    <td className="p-space-md border-r border-pure-black min-w-[200px]">
-                      <div className="w-full bg-surface-container h-3 border border-pure-black flex overflow-hidden">
-                        <div className="bg-royal-blue" style={{ width: `${st.focus}%` }} />
-                        <div className="bg-bright-yellow" style={{ width: `${st.happy}%` }} />
-                        {st.tired && <div className="bg-vivid-red" style={{ width: `${st.tired}%` }} />}
-                        {st.distracted && (
-                          <div className="bg-[#888888]" style={{ width: `${st.distracted}%` }} />
-                        )}
-                      </div>
-                      <span className="text-label-sm text-on-surface-variant font-bold mt-1 block">
-                        {st.statusText}
-                      </span>
-                    </td>
-                    <td className="p-space-md text-on-surface-variant">{st.notes}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+            </section>
+          </>
+        ) : null}
       </div>
     </DashboardLayout>
   );

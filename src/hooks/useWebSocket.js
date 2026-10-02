@@ -1,68 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { meetingWebSocketUrl, shouldEnableMocks } from '../config/runtime';
+import { meetingWebSocketUrl } from '../config/runtime';
 import { refreshAccessToken } from '../api/axiosClient';
 import { getAccessToken } from '../utils/session';
-import { MockRealtimeSocket } from '../mocks/mockRealtimeSocket';
-
-const toWireMessages = (message) => {
-  if (message.type === 'signal.offer') {
-    return [{ type: 'OFFER', target_id: message.targetId, payload: message.payload }];
-  }
-  if (message.type === 'signal.answer') {
-    return [{ type: 'ANSWER', target_id: message.targetId, payload: message.payload }];
-  }
-  if (message.type === 'signal.ice') {
-    return [{ type: 'ICE_CANDIDATE', target_id: message.targetId, payload: message.payload }];
-  }
-  if (message.type === 'media.status') {
-    return [
-      { type: 'CAMERA_STATUS', payload: { enabled: Boolean(message.payload.camera) } },
-      { type: 'MIC_STATUS', payload: { enabled: Boolean(message.payload.mic) } },
-    ];
-  }
-  // The backend broadcasts MEETING_ENDED after the REST end request.
-  // This local-only event is kept for MockRealtimeSocket.
-  if (message.type === 'room.ended') return [];
-  if (message.type === 'room.leave') return [{ type: 'LEAVE' }];
-  return [message];
-};
-
-const fromWireMessage = (message) => {
-  if (!message?.success) {
-    return [{ type: 'socket.error', payload: message?.data, message: message?.message }];
-  }
-  const event = message.data;
-  if (!event?.type) return [];
-
-  if (event.type === 'JOIN' && Array.isArray(event.peers)) {
-    return event.peers.map((peer) => ({
-      type: 'participant.present',
-      senderId: peer.user_id,
-      payload: { participant: { id: peer.user_id, role: peer.role } },
-    }));
-  }
-  if (event.type === 'JOIN') {
-    return [{
-      type: 'participant.joined',
-      senderId: event.sender_id,
-      payload: { participant: { id: event.sender_id, role: event.role } },
-    }];
-  }
-  if (event.type === 'LEAVE') {
-    return [{ type: 'participant.left', senderId: event.sender_id, payload: { participantId: event.sender_id } }];
-  }
-  if (event.type === 'MEETING_ENDED') return [{ type: 'room.ended', payload: {} }];
-  if (event.type === 'OFFER') return [{ type: 'signal.offer', senderId: event.sender_id, payload: event.payload }];
-  if (event.type === 'ANSWER') return [{ type: 'signal.answer', senderId: event.sender_id, payload: event.payload }];
-  if (event.type === 'ICE_CANDIDATE') return [{ type: 'signal.ice', senderId: event.sender_id, payload: event.payload }];
-  if (event.type === 'CAMERA_STATUS') {
-    return [{ type: 'media.status', senderId: event.sender_id, payload: { camera: event.payload.enabled } }];
-  }
-  if (event.type === 'MIC_STATUS') {
-    return [{ type: 'media.status', senderId: event.sender_id, payload: { mic: event.payload.enabled } }];
-  }
-  return [{ ...event, senderId: event.sender_id }];
-};
+import { fromWireMessage, shouldReconnectSocket, toWireMessages } from '../realtime/signalingProtocol';
 
 const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
   const socketRef = useRef(null);
@@ -82,24 +22,6 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
 
   useEffect(() => {
     if (!meetingId || !user) return undefined;
-
-    if (shouldEnableMocks) {
-      const socket = new MockRealtimeSocket({ roomId: meetingId, user });
-      socketRef.current = socket;
-      const unsubscribe = socket.subscribe((event) => {
-        if (event.type === 'socket.open') {
-          updateStatus('connected');
-          socket.send({ type: 'auth', payload: { userId: user.id } });
-          return;
-        }
-        callbacksRef.current.onEvent?.(event);
-      });
-      return () => {
-        unsubscribe();
-        socket.close();
-        if (socketRef.current === socket) socketRef.current = null;
-      };
-    }
 
     let disposed = false;
     let ended = false;
@@ -127,9 +49,8 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
       socketRef.current = transport;
 
       nativeSocket.onopen = () => {
-        reconnectAttempts = 0;
         lastErrorCode = null;
-        updateStatus('connected');
+        updateStatus('authenticating');
         nativeSocket.send(JSON.stringify({ type: 'AUTH', token: getAccessToken() }));
       };
 
@@ -137,6 +58,10 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
         try {
           const message = JSON.parse(data);
           if (!message.success) lastErrorCode = message.data?.code;
+          if (message.success && message.data?.type === 'JOIN') {
+            reconnectAttempts = 0;
+            updateStatus('connected');
+          }
           fromWireMessage(message).forEach((event) => {
             if (event.type === 'room.ended') ended = true;
             callbacksRef.current.onEvent?.(event);
@@ -150,8 +75,23 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
       };
 
       nativeSocket.onerror = () => updateStatus('error');
-      nativeSocket.onclose = async () => {
+      nativeSocket.onclose = async ({ code }) => {
         if (disposed || ended) {
+          updateStatus('closed');
+          return;
+        }
+        if (code === 4001) {
+          disposed = true;
+          socketRef.current = null;
+          updateStatus('replaced');
+          callbacksRef.current.onEvent?.({
+            type: 'socket.error',
+            payload: { code: 'SOCKET_REPLACED' },
+            message: 'Phiên phòng này đã được mở ở một tab hoặc thiết bị khác.',
+          });
+          return;
+        }
+        if (!shouldReconnectSocket(code)) {
           updateStatus('closed');
           return;
         }

@@ -33,11 +33,6 @@ export const getStoredUser = () => {
 
 export const clearSession = () => {
   storages().forEach((storage) => Object.values(KEYS).forEach((key) => storage.removeItem(key)));
-  // Remove keys written by the previous mock-only authentication contract.
-  storages().forEach((storage) => {
-    storage.removeItem('mockSession');
-    storage.removeItem('mockUser');
-  });
 };
 
 export const saveTokens = (tokens, remember) => {

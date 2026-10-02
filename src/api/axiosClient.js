@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { apiBaseUrl } from '../config/runtime';
 import { clearSession, getAccessToken, getRefreshToken, saveTokens } from '../utils/session';
+import { apiErrorMessage } from '../utils/validation';
 
 export { apiBaseUrl } from '../config/runtime';
 
@@ -57,8 +58,6 @@ axiosClient.interceptors.response.use(undefined, async (error) => {
   }
 });
 
-export const getApiErrorMessage = (error, fallback = 'Đã có lỗi xảy ra.') => (
-  error?.response?.data?.message || error?.message || fallback
-);
+export const getApiErrorMessage = apiErrorMessage;
 
 export default axiosClient;

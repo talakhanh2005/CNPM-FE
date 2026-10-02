@@ -4,7 +4,6 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import App from './App.jsx';
 import './index.css';
 import { AuthProvider } from './contexts/AuthContext.jsx';
-import { shouldEnableMocks } from './config/runtime.js';
 
 const render = () => createRoot(document.getElementById('root')).render(
   <StrictMode>
@@ -16,12 +15,4 @@ const render = () => createRoot(document.getElementById('root')).render(
   </StrictMode>,
 );
 
-const enableMocking = async () => {
-  const { worker } = await import('./mocks/browser');
-  await worker.start({
-    onUnhandledRequest: 'bypass',
-    quiet: true,
-  });
-};
-
-(shouldEnableMocks ? enableMocking() : Promise.resolve()).finally(render);
+render();
