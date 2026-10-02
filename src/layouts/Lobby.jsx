@@ -5,7 +5,7 @@ import { isMediaStreamRetained } from '../utils/mediaSession';
 const stopTracks = (stream) => stream?.getTracks().forEach((track) => track.stop());
 const isLiveTrack = (track) => track?.readyState !== 'ended';
 
-const Lobby = ({ children, onMediaChange, roomTitle, roomCode }) => {
+const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const mediaChangeRef = useRef(onMediaChange);
@@ -13,6 +13,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode }) => {
   const [isCamOn, setIsCamOn] = useState(false);
   const [isMicOn, setIsMicOn] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState({ mic: '', camera: '', speaker: '' });
+  const [showDeviceSettings, setShowDeviceSettings] = useState(false);
   const [audioLevel, setAudioLevel] = useState(false);
   const permissionVersion = useMediaPermissionVersion();
   const [devices, setDevices] = useState({
@@ -24,6 +25,17 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode }) => {
   useEffect(() => {
     mediaChangeRef.current = onMediaChange;
   }, [onMediaChange]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && onClose) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,66 +164,93 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode }) => {
   }, []);
 
   return (
-    <div className="flex flex-col w-full bg-surface text-on-surface p-2 sm:p-4 font-body">
-      {/* Top decorative Neo-Bauhaus geometric header bar */}
-      <div className="flex flex-wrap items-center justify-between bg-surface-container-low p-4 mb-6 border-[3px] border-pure-black shadow-[4px_4px_0px_#000000]">
-        <div className="flex items-center gap-3">
-          {/* Geometric Shapes Accent */}
-          <div className="w-5 h-5 bg-vivid-red border-[2px] border-pure-black" />
-          <div className="w-5 h-5 rounded-full bg-royal-blue border-[2px] border-pure-black" />
-          <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[18px] border-b-bright-yellow" />
-          <span className="font-headline font-bold text-headline-sm tracking-tight text-on-surface uppercase ml-2">
-            Phòng Chờ Trực Tuyến // Lớp Học AI
+    <div className="flex min-h-0 max-h-full flex-col w-full h-full bg-surface text-on-surface font-body overflow-hidden">
+      {/* Top compact Neo-Bauhaus Header */}
+      <div className="flex items-center justify-between bg-surface-container-low px-4 py-2.5 border-b-[3px] border-pure-black shrink-0">
+        <div className="flex items-center gap-2.5">
+          <div className="w-3.5 h-3.5 bg-vivid-red border-[2px] border-pure-black" />
+          <div className="w-3.5 h-3.5 rounded-full bg-royal-blue border-[2px] border-pure-black" />
+          <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[13px] border-b-bright-yellow" />
+          <span className="font-headline font-bold text-label-lg tracking-tight text-on-surface uppercase ml-1 truncate">
+            {roomTitle || 'Phòng Chờ Trực Tuyến // Lớp Học AI'}
           </span>
         </div>
+
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center px-3 py-1 bg-bright-yellow border-[2px] border-pure-black text-label-sm font-bold uppercase shadow-[2px_2px_0px_#000000]">
+          <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 bg-bright-yellow border-[2px] border-pure-black text-label-xs font-bold uppercase shadow-[1px_1px_0px_#000000]">
             Trạng thái: Đã kết nối
           </span>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              title="Đóng phòng chờ (ESC)"
+              className="w-8 h-8 bg-surface border-[2px] border-pure-black flex items-center justify-center font-bold text-headline-sm hover:bg-vivid-red hover:text-white transition-colors cursor-pointer shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Main Grid Container */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
-        {/* Left Column: Camera Preview & Device Controls (7 Cols) */}
-        <div className="lg:col-span-7 flex flex-col gap-6">
+      {/* Main Container - 2 Columns with internal responsive layout */}
+      <div className="grid min-h-0 grid-cols-1 lg:grid-cols-12 gap-4 p-3 md:p-5 flex-1 overflow-y-auto overscroll-contain">
+        {/* Left Column: Camera Preview & Quick Device Toggles (7 Cols) */}
+        <div className="lg:col-span-7 flex flex-col gap-3">
           {/* Video Preview Card */}
-          <div className="relative bg-surface-container-lowest border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] p-4 flex flex-col">
-            <div className="flex items-center justify-between pb-3 mb-3 border-b-[3px] border-pure-black">
+          <div className="relative bg-surface-container-lowest border-[3px] border-pure-black shadow-[4px_4px_0px_#000000] p-3 flex flex-col">
+            {/* Header of Video Preview */}
+            <div className="flex items-center justify-between pb-2 mb-2 border-b-[2px] border-pure-black">
               <div className="flex items-center gap-2">
-                <span className={`w-3 h-3 rounded-full border-[2px] border-pure-black ${isCamOn ? 'bg-emerald-500 animate-pulse' : 'bg-vivid-red'}`} />
-                <span className="font-headline font-bold text-label-lg uppercase">
+                <span className={`w-2.5 h-2.5 rounded-full border-[2px] border-pure-black ${isCamOn ? 'bg-emerald-500 animate-pulse' : 'bg-vivid-red'}`} />
+                <span className="font-headline font-bold text-label-md uppercase">
                   Camera Preview {isCamOn ? 'LIVE' : 'OFF'}
                 </span>
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setIsCamOn((v) => !v)}
-                  className={`px-3 py-1.5 border-[3px] border-pure-black text-label-sm uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer ${
+                  className={`px-2.5 py-1 border-[2px] border-pure-black text-label-xs uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer flex items-center gap-1 ${
                     isCamOn
                       ? 'bg-surface-container hover:bg-bright-yellow text-on-surface'
                       : 'bg-vivid-red text-on-error'
                   }`}
                 >
-                  {isCamOn ? 'Tắt Camera' : 'Bật Camera'}
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isCamOn ? 'videocam_off' : 'videocam'}
+                  </span>
+                  <span>{isCamOn ? 'Tắt Cam' : 'Bật Cam'}</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setIsMicOn((v) => !v)}
-                  className={`px-3 py-1.5 border-[3px] border-pure-black text-label-sm uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-none cursor-pointer ${
+                  className={`px-2.5 py-1 border-[2px] border-pure-black text-label-xs uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer flex items-center gap-1 ${
                     isMicOn
                       ? 'bg-surface-container hover:bg-bright-yellow text-on-surface'
                       : 'bg-vivid-red text-on-error'
                   }`}
                 >
-                  {isMicOn ? 'Tắt Mic' : 'Bật Mic'}
+                  <span className="material-symbols-outlined text-[16px]">
+                    {isMicOn ? 'mic_off' : 'mic'}
+                  </span>
+                  <span>{isMicOn ? 'Tắt Mic' : 'Bật Mic'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowDeviceSettings((v) => !v)}
+                  className={`p-1 border-[2px] border-pure-black transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer ${
+                    showDeviceSettings ? 'bg-bright-yellow text-pure-black' : 'bg-surface hover:bg-surface-container'
+                  }`}
+                  title="Cài đặt thiết bị"
+                >
+                  <span className="material-symbols-outlined text-[18px]">settings</span>
                 </button>
               </div>
             </div>
 
-            {/* Camera Frame */}
-            <div className="relative w-full aspect-video bg-surface-dim border-[3px] border-pure-black overflow-hidden flex items-center justify-center">
+            {/* Camera Frame (Aspect Video) */}
+            <div className="relative w-full aspect-video max-h-[300px] md:max-h-[340px] bg-surface-dim border-[2px] border-pure-black overflow-hidden flex items-center justify-center">
               <video
                 ref={videoRef}
                 autoPlay
@@ -221,199 +260,149 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode }) => {
               />
 
               {!isCamOn && (
-                <div className="flex flex-col items-center gap-2 text-center p-6 bg-surface-container-low border-[2px] border-pure-black">
-                  <div className="w-14 h-14 bg-bright-yellow border-[3px] border-pure-black flex items-center justify-center shadow-[3px_3px_0px_#000000]">
-                    <span className="material-symbols-outlined text-[32px] text-pure-black">
+                <div className="flex flex-col items-center gap-1.5 text-center p-4 bg-surface-container-low border-[2px] border-pure-black max-w-xs">
+                  <div className="w-10 h-10 bg-bright-yellow border-[2px] border-pure-black flex items-center justify-center shadow-[2px_2px_0px_#000000]">
+                    <span className="material-symbols-outlined text-[24px] text-pure-black">
                       videocam_off
                     </span>
                   </div>
-                  <p className="font-headline font-bold text-headline-sm text-on-surface mt-2">
+                  <p className="font-headline font-bold text-label-md text-on-surface">
                     Camera đang tắt
                   </p>
-                  <p className="text-body-sm text-on-surface-variant max-w-xs">
-                    Nhấn nút "Bật Camera" phía trên để kiểm tra hình ảnh trước khi vào lớp.
+                  <p className="text-label-xs text-on-surface-variant">
+                    Bật camera phía trên để kiểm tra hình ảnh trước khi vào lớp.
                   </p>
                 </div>
               )}
 
-              {/* Absolute overlay stream elements */}
-              <div className="absolute bottom-3 left-3 bg-pure-black text-on-primary px-3 py-1 text-label-sm font-mono border-[2px] border-pure-black">
-                FPS: 60 | 1080p | Ping: 14ms
+              {/* Badges on video */}
+              <div className="absolute bottom-2 left-2 bg-pure-black/90 text-on-primary px-2 py-0.5 text-[11px] font-mono border border-pure-black">
+                FPS: 60 | 1080p | 14ms
               </div>
-              <div className="absolute top-3 right-3 w-8 h-8 bg-bright-yellow border-[2px] border-pure-black flex items-center justify-center font-bold text-pure-black shadow-[2px_2px_0px_#000000]">
-                AI
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-bright-yellow border-[2px] border-pure-black font-bold text-xs text-pure-black shadow-[1px_1px_0px_#000000] flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                AI Sẵn sàng
               </div>
             </div>
 
             {/* Audio Visualizer Bar */}
-            <div className="mt-4 p-3 bg-surface-container-low border-[3px] border-pure-black flex items-center gap-4">
-              <span className={`material-symbols-outlined ${isMicOn ? 'text-royal-blue' : 'text-outline'}`}>
+            <div className="mt-2.5 p-2 bg-surface-container-low border-[2px] border-pure-black flex items-center gap-3">
+              <span className={`material-symbols-outlined text-[18px] ${isMicOn ? 'text-royal-blue' : 'text-outline'}`}>
                 {isMicOn ? 'mic' : 'mic_off'}
               </span>
-              <div className="flex-1 flex items-center gap-1.5 h-4">
-                <div className={`w-2 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-3/4 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-1/2 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-5/6 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-1/3 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-2 h-2/3 border border-pure-black ${isMicOn ? 'bg-royal-blue' : 'bg-surface-variant'}`} />
+              <div className="flex-1 flex items-center gap-1 h-3">
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-3/4 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-1/2 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-5/6 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-1/3 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-2/3 border border-pure-black ${isMicOn ? 'bg-royal-blue' : 'bg-surface-variant'}`} />
               </div>
-              <span className="text-label-sm font-mono font-bold">
+              <span className="text-label-xs font-mono font-bold">
                 {isMicOn ? '-18dB' : 'Muted'}
               </span>
             </div>
           </div>
 
-          {/* Device Selection Controls */}
-          <div className="bg-surface-container-low border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] p-5 flex flex-col gap-4">
-            <h3 className="font-headline font-bold text-headline-sm uppercase border-b-[3px] border-pure-black pb-2">
-              Cài đặt thiết bị đầu vào
-            </h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Camera Select */}
-              <div className="flex flex-col gap-1">
-                <label className="text-label-sm uppercase font-bold text-on-surface-variant">
-                  Camera
-                </label>
-                <select
-                  value={selectedDevices.camera}
-                  onChange={(e) => setSelectedDevices((prev) => ({ ...prev, camera: e.target.value }))}
-                  className="p-2.5 bg-surface border-[3px] border-pure-black font-body-sm focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000] cursor-pointer"
+          {/* Collapsible/Compact Device Selectors */}
+          {showDeviceSettings && (
+            <div className="bg-surface-container-low border-[2px] border-pure-black p-3 flex flex-col gap-2.5 animate-fade-in shadow-[2px_2px_0px_#000000]">
+              <div className="flex items-center justify-between pb-1 border-b border-pure-black">
+                <span className="text-label-xs font-bold uppercase tracking-wider">Cài đặt thiết bị</span>
+                <button
+                  type="button"
+                  onClick={() => setShowDeviceSettings(false)}
+                  className="text-label-xs font-bold underline"
                 >
-                  {devices.cams.map((c) => (
-                    <option key={c.value} value={c.value}>{c.label}</option>
-                  ))}
-                </select>
+                  Thu gọn
+                </button>
               </div>
 
-              {/* Micro Select */}
-              <div className="flex flex-col gap-1">
-                <label className="text-label-sm uppercase font-bold text-on-surface-variant">
-                  Microphone
-                </label>
-                <select
-                  value={selectedDevices.mic}
-                  onChange={(e) => setSelectedDevices((prev) => ({ ...prev, mic: e.target.value }))}
-                  className="p-2.5 bg-surface border-[3px] border-pure-black font-body-sm focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000] cursor-pointer"
-                >
-                  {devices.mics.map((m) => (
-                    <option key={m.value} value={m.value}>{m.label}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[11px] uppercase font-bold text-on-surface-variant">Camera</label>
+                  <select
+                    value={selectedDevices.camera}
+                    onChange={(e) => setSelectedDevices((prev) => ({ ...prev, camera: e.target.value }))}
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                  >
+                    {devices.cams.map((c) => (
+                      <option key={c.value} value={c.value}>{c.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[11px] uppercase font-bold text-on-surface-variant">Microphone</label>
+                  <select
+                    value={selectedDevices.mic}
+                    onChange={(e) => setSelectedDevices((prev) => ({ ...prev, mic: e.target.value }))}
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                  >
+                    {devices.mics.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-0.5">
+                  <label className="text-[11px] uppercase font-bold text-on-surface-variant">Tai nghe / Loa</label>
+                  <select
+                    value={selectedDevices.speaker}
+                    onChange={(e) => setSelectedDevices((prev) => ({ ...prev, speaker: e.target.value }))}
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                  >
+                    {devices.speakers.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              {/* Speaker Select */}
-              <div className="flex flex-col gap-1">
-                <label className="text-label-sm uppercase font-bold text-on-surface-variant">
-                  Tai nghe / Loa
-                </label>
-                <select
-                  value={selectedDevices.speaker}
-                  onChange={(e) => setSelectedDevices((prev) => ({ ...prev, speaker: e.target.value }))}
-                  className="p-2.5 bg-surface border-[3px] border-pure-black font-body-sm focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000] cursor-pointer"
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAudioLevel(true);
+                    setTimeout(() => setAudioLevel(false), 2000);
+                  }}
+                  className="px-2.5 py-1 bg-secondary text-on-secondary border-[2px] border-pure-black text-label-xs uppercase font-bold hover:bg-secondary-container transition-colors cursor-pointer"
                 >
-                  {devices.speakers.map((s) => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
+                  {audioLevel ? 'Mic OK!' : 'Thử Micro'}
+                </button>
               </div>
             </div>
-
-            {/* Quick Test Buttons */}
-            <div className="flex flex-wrap gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => {
-                  setAudioLevel(true);
-                  setTimeout(() => setAudioLevel(false), 2000);
-                }}
-                className="px-4 py-2 bg-secondary text-on-secondary border-[3px] border-pure-black font-label-md uppercase shadow-[3px_3px_0px_#000000] hover:bg-secondary-container active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer font-bold"
-              >
-                {audioLevel ? 'Micro hoạt động tốt!' : 'Kiểm tra Micro'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsCamOn(true)}
-                className="px-4 py-2 bg-tertiary text-on-tertiary border-[3px] border-pure-black font-label-md uppercase shadow-[3px_3px_0px_#000000] hover:bg-vivid-red active:translate-x-[2px] active:translate-y-[2px] active:shadow-none transition-all cursor-pointer font-bold"
-              >
-                Thử Camera
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
-        {/* Right Column: Room Info & AI Status & Children (5 Cols) */}
-        <div className="lg:col-span-5 flex flex-col gap-6">
-          {/* Room Info Card */}
-          <div className="bg-surface-container-lowest border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] p-6 flex flex-col gap-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <span className="px-2.5 py-1 bg-royal-blue text-on-secondary font-label-sm uppercase font-bold border-[2px] border-pure-black inline-block mb-2">
-                  Trực tiếp hôm nay
-                </span>
-                <h2 className="font-headline font-bold text-headline-lg text-on-surface">
-                  {roomTitle || 'Phòng học trực tuyến'}
-                </h2>
-                <p className="font-body-md font-bold text-on-surface-variant">
-                  Không gian học tập AI Chuẩn Bauhaus
-                </p>
-              </div>
-              <div className="w-12 h-12 bg-bright-yellow border-[3px] border-pure-black flex items-center justify-center font-headline font-bold text-headline-md shadow-[3px_3px_0px_#000000]">
-                AI
-              </div>
-            </div>
-
-            <div className="border-t-[3px] border-pure-black pt-4 flex flex-col gap-2.5">
-              <div className="flex justify-between items-center bg-surface-container-low p-3 border-[2px] border-pure-black">
-                <span className="font-label-sm uppercase text-on-surface-variant font-bold">Mã phòng:</span>
-                <span className="font-label-lg font-mono bg-bright-yellow px-2 py-0.5 border-[2px] border-pure-black font-bold">
-                  {roomCode ? `#${roomCode}` : '#TẠO-MỚI'}
-                </span>
-              </div>
-              <div className="flex justify-between items-center bg-surface-container-low p-3 border-[2px] border-pure-black">
-                <span className="font-label-sm uppercase text-on-surface-variant font-bold">Thời gian:</span>
-                <span className="font-label-md font-bold">90 phút</span>
-              </div>
-            </div>
-          </div>
-
-          {/* AI Emotion & Readiness Check Card */}
-          <div className="bg-primary-container border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] p-6 flex flex-col gap-4">
+        {/* Right Column: Room Details & Form controls (5 Cols) */}
+        <div className="lg:col-span-5 flex flex-col gap-3">
+          {/* Header Card: Room info & Status */}
+          <div className="bg-surface-container-lowest border-[3px] border-pure-black shadow-[4px_4px_0px_#000000] p-3.5 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <h3 className="font-headline font-bold text-headline-sm uppercase text-on-primary-container">
-                Trạng thái AI Phân tích
-              </h3>
-              <span className="material-symbols-outlined text-on-primary-container text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                psychology
+              <span className="px-2 py-0.5 bg-royal-blue text-on-secondary text-label-xs uppercase font-bold border-[2px] border-pure-black">
+                Trực tiếp hôm nay
               </span>
+              <div className="flex items-center gap-1.5 bg-bright-yellow px-2 py-0.5 border-[2px] border-pure-black text-label-xs font-bold">
+                <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+                  psychology
+                </span>
+                <span>AI Sẵn sàng: 95%</span>
+              </div>
             </div>
-            <div className="bg-surface border-[3px] border-pure-black p-4 flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <span className="font-body-sm font-bold uppercase">Cảm xúc nhận diện:</span>
-                <span className="px-2 py-0.5 bg-bright-yellow border-[2px] border-pure-black font-label-sm uppercase font-bold">
-                  Tập trung cao
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="font-body-sm font-bold uppercase">Hệ thống trợ lý AI:</span>
-                <span className="text-royal-blue font-bold uppercase text-label-sm">
-                  Sẵn sàng kích hoạt
-                </span>
-              </div>
-              {/* Progress bar */}
-              <div className="w-full bg-surface-container border-[2px] border-pure-black h-4 mt-1 overflow-hidden">
-                <div className="bg-vivid-red h-full w-[95%] border-r-[2px] border-pure-black" />
-              </div>
-              <span className="text-right text-label-sm font-mono font-bold">
-                Độ sẵn sàng: 95%
+
+            <div className="flex justify-between items-center pt-1 border-t-[2px] border-pure-black">
+              <span className="font-label-xs uppercase text-on-surface-variant font-bold">Mã phòng:</span>
+              <span className="font-label-sm font-mono bg-bright-yellow px-2 py-0.5 border-[2px] border-pure-black font-bold">
+                {roomCode ? `#${roomCode}` : '#TẠO-MỚI'}
               </span>
             </div>
           </div>
 
-          {/* Children: Form / Buttons */}
-          <div className="flex flex-col gap-4">
+          {/* Children: Form inputs & Action buttons */}
+          <div className="flex flex-col flex-1">
             {children}
           </div>
         </div>

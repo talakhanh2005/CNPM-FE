@@ -52,7 +52,7 @@ const MeetingDialog = ({
                   <span className="text-xs font-mono text-outline">Vừa xong</span>
                 </div>
                 <p className="text-body-sm text-on-surface">
-                  Chào mừng bạn đến với lớp học trực tuyến Neo-Bauhaus. Hãy giữ trật tự và tập trung nghe giảng!
+                  Chào mừng bạn đến với lớp học trực tuyến Neo-Learn AI. Hãy giữ trật tự và tập trung nghe giảng!
                 </p>
               </div>
             </div>

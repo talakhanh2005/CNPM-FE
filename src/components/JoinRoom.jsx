@@ -43,37 +43,47 @@ const JoinRoom = ({ roomCode, onClose }) => {
   return (
     <div
       onAnimationEnd={isExiting ? (onClose || (() => navigate(-1))) : undefined}
-      className={isExiting ? 'join-room-exit h-full' : 'h-full'}
+      className={isExiting ? 'join-room-exit min-h-0 h-full flex flex-col' : 'min-h-0 h-full flex flex-col'}
     >
       <Lobby
         onMediaChange={setLobbyMedia}
         roomCode={roomCode}
         roomTitle={`Phòng học #${roomCode}`}
+        onClose={handleBack}
       >
-        <div className="flex flex-col gap-4 bg-surface-container-lowest border-[3px] border-pure-black p-5 shadow-[4px_4px_0px_#000000]">
+        <div className="flex flex-col gap-3 bg-surface-container-lowest border-[3px] border-pure-black p-4 shadow-[4px_4px_0px_#000000]">
+          <div className="bg-surface-container-low border-[2px] border-pure-black p-3">
+            <span className="text-label-xs font-bold uppercase text-on-surface-variant block mb-1">
+              Thông tin phiên học
+            </span>
+            <p className="text-body-sm font-bold text-on-surface">
+              Bạn đang chuẩn bị tham gia vào lớp học trực tuyến. Vui lòng kiểm tra Micro &amp; Camera trước khi kết nối.
+            </p>
+          </div>
+
           {error && (
-            <p className="p-2.5 bg-tertiary-container border-[2px] border-pure-black text-on-tertiary-container font-bold text-body-sm text-center">
+            <p className="p-2 bg-tertiary-container border-[2px] border-pure-black text-on-tertiary-container font-bold text-label-xs text-center">
               {error}
             </p>
           )}
 
-          <div className="flex flex-col gap-2.5">
+          <div className="flex flex-col gap-2 pt-1">
             <button
               type="button"
               disabled={isJoining}
               onClick={handleJoin}
-              className="w-full py-4 bg-bright-yellow text-pure-black border-[3px] border-pure-black font-headline font-bold text-headline-sm uppercase tracking-wide shadow-[4px_4px_0px_#000000] hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[4px] active:translate-y-[4px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-bright-yellow text-pure-black border-[3px] border-pure-black font-headline font-bold text-label-lg uppercase tracking-wide shadow-[3px_3px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <span>{isJoining ? 'Đang kết nối...' : 'Vào phòng học ngay'}</span>
-              <span className="material-symbols-outlined text-2xl font-bold">arrow_forward</span>
+              <span className="material-symbols-outlined text-[20px] font-bold">arrow_forward</span>
             </button>
 
             <button
               type="button"
               onClick={handleBack}
-              className="w-full py-2.5 bg-surface text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container active:translate-x-[2px] active:translate-y-[2px] transition-all cursor-pointer"
+              className="w-full py-2 bg-surface text-on-surface border-[2px] border-pure-black text-label-xs font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container active:translate-x-[1px] active:translate-y-[1px] transition-all cursor-pointer text-center"
             >
-              Quay lại
+              Quay lại / Đóng
             </button>
           </div>
         </div>

@@ -52,18 +52,18 @@ const Login = () => {
           <div className="relative z-10">
             <div className="inline-block px-space-sm py-space-xs bg-primary-container border-[3px] border-pure-black shadow-[4px_4px_0px_#000000] mb-space-lg">
               <span className="text-label-sm uppercase tracking-wider font-bold text-on-primary-container">
-                Neo-Bauhaus AI Academy
+                AI CLASSROOM PLATFORM
               </span>
             </div>
             <h1 className="text-headline-xl lg:text-[56px] lg:leading-[64px] text-on-surface font-headline font-bold tracking-tight mb-space-md">
               Học tập thông minh cùng AI Cảm xúc.
             </h1>
             <p className="text-body-lg text-on-surface-variant max-w-md">
-              Nền tảng giáo dục thế hệ mới kết hợp tư duy thiết kế Bauhaus kinh điển và trí tuệ nhân tạo thấu cảm, mang lại trải nghiệm học tập đỉnh cao cho cả giảng viên và học viên.
+              Nền tảng học tập thông minh trực tuyến thế hệ mới, hỗ trợ tối đa cho giảng dạy và tương tác lớp học qua AI.
             </p>
           </div>
 
-          {/* Feature Grid / Bauhaus Monospace details */}
+          {/* Feature Grid / Monospace details */}
           <div className="relative z-10 grid grid-cols-1 sm:grid-cols-2 gap-space-md mt-space-xl pt-space-xl border-t-[3px] border-pure-black">
             <div className="bg-surface-container-lowest border-[3px] border-pure-black p-space-md shadow-[4px_4px_0px_#000000]">
               <span
@@ -82,7 +82,7 @@ const Login = () => {
               >
                 architecture
               </span>
-              <h3 className="text-headline-sm font-bold text-on-surface mb-1">Chuẩn Bauhaus</h3>
+              <h3 className="text-headline-sm font-bold text-on-surface mb-1">Tương tác trực quan</h3>
               <p className="text-body-sm text-on-surface-variant">Giao diện tối giản, rõ ràng, tối ưu hóa sự tập trung tuyệt đối.</p>
             </div>
           </div>

@@ -19,7 +19,7 @@ const AuthLayout = ({ children }) => {
         <div className="flex items-center gap-space-md">
           <div className="hidden sm:flex items-center gap-space-xs text-label-md text-on-surface-variant px-space-sm py-space-xs border-[3px] border-pure-black bg-surface-container-lowest shadow-[2px_2px_0px_#000000]">
             <span className="material-symbols-outlined text-[18px]">verified</span>
-            <span className="font-bold">Bauhaus Edu</span>
+            <span className="font-bold">Neo Edu</span>
           </div>
 
           <div className="w-9 h-9 rounded-full bg-primary-container flex items-center justify-center border-[3px] border-pure-black shadow-[2px_2px_0px_#000000]">
