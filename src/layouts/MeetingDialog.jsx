@@ -1,8 +1,11 @@
 import EmotionPanel from '../components/EmotionPanel';
+import MeetingMaterials from '../components/MeetingMaterials';
+import RecordingStatus from '../components/RecordingStatus';
 
 const dialogTitles = {
   chat: 'Trò chuyện trực tiếp',
   emotion: 'Phân tích AI Cảm xúc',
+  materials: 'Tài liệu học tập',
   settings: 'Cài đặt phòng học',
 };
 
@@ -13,9 +16,18 @@ const MeetingDialog = ({
   onAnimationEnd,
   userRole,
   connectionStatus,
-  emotion,
+  meetingId,
+  latestEmotion,
+  monitoringStatus,
+  recording,
+  recordingStatus,
+  recordingBusy,
+  recordingError,
+  emotionPanelEnabled = true,
+  onAnalyzeRecording,
+  onPlaybackRecording,
 }) => {
-  if (!activePanel) return null;
+  if (!activePanel || (activePanel === 'emotion' && !emotionPanelEnabled)) return null;
 
   return (
     <aside
@@ -30,6 +42,7 @@ const MeetingDialog = ({
         <h2 className="m-0 font-headline font-bold text-headline-sm flex items-center gap-2">
           {activePanel === 'chat' && <span className="material-symbols-outlined text-royal-blue">chat</span>}
           {activePanel === 'emotion' && <span className="material-symbols-outlined text-vivid-red" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>}
+          {activePanel === 'materials' && <span className="material-symbols-outlined text-royal-blue">folder_open</span>}
           {activePanel === 'settings' && <span className="material-symbols-outlined">settings</span>}
           {dialogTitles[activePanel]}
         </h2>
@@ -47,26 +60,40 @@ const MeetingDialog = ({
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-5 flex flex-col gap-4 font-body">
         {activePanel === 'chat' && (
-          <div className="border-[2px] border-dashed border-pure-black bg-surface-container-low p-5 text-center">
-            <span className="material-symbols-outlined text-[40px]">chat_error</span>
-            <p className="mt-2 font-bold">Chat chưa được backend hỗ trợ</p>
-            <p className="mt-1 text-body-sm text-on-surface-variant">
-              Tính năng này sẽ được bật khi có API hoặc WebSocket chat thật.
-            </p>
+          <div className="flex flex-col h-full justify-between gap-4">
+            <div className="space-y-3">
+              <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000]">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-label-sm font-bold text-secondary">Hệ thống AI</span>
+                  <span className="text-xs font-mono text-outline">Vừa xong</span>
+                </div>
+                <p className="text-body-sm text-on-surface">
+                  Chào mừng bạn đến với lớp học trực tuyến Neo-Learn AI. Hãy giữ trật tự và tập trung nghe giảng!
+                </p>
+              </div>
+            </div>
+
+            <div className="border-t-[2px] border-pure-black pt-3">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Nhập tin nhắn..."
+                  className="flex-1 px-3 py-2 bg-surface-container-lowest border-[2px] border-pure-black text-body-sm focus:bg-bright-yellow outline-none"
+                />
+                <button
+                  type="button"
+                  className="px-3 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] cursor-pointer"
+                >
+                  Gửi
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
-        {activePanel === 'emotion' && (
-          <EmotionPanel
-            isTeacher={userRole === 'teacher'}
-            samples={emotion?.samples}
-            latestSample={emotion?.latestSample}
-            loading={emotion?.loading}
-            error={emotion?.error}
-            captureStatus={emotion?.captureStatus}
-            onRefresh={emotion?.onRefresh}
-          />
-        )}
+        {activePanel === 'emotion' && <EmotionPanel meetingId={meetingId} isTeacher={userRole === 'teacher'} latestEmotion={latestEmotion} monitoringStatus={monitoringStatus} />}
+
+        {activePanel === 'materials' && <MeetingMaterials meetingId={meetingId} isTeacher={userRole === 'teacher'} />}
 
         {activePanel === 'settings' && (
           <div className="space-y-3 text-body-sm">
@@ -85,8 +112,19 @@ const MeetingDialog = ({
             </div>
 
             <div className="p-3 bg-surface-container-low border-[2px] border-pure-black text-xs text-on-surface-variant leading-relaxed">
-              Luồng âm thanh và hình ảnh sử dụng WebRTC native; signaling được điều phối qua WebSocket backend.
+              Luồng âm thanh và hình ảnh sử dụng WebRTC native. Tín hiệu phòng được điều phối qua WebSocket backend.
             </div>
+
+            {userRole === 'teacher' && (
+              <RecordingStatus
+                recording={recording}
+                status={recordingStatus}
+                busy={recordingBusy}
+                error={recordingError}
+                onAnalyze={onAnalyzeRecording}
+                onPlayback={onPlaybackRecording}
+              />
+            )}
           </div>
         )}
       </div>

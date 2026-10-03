@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import useAuth from '../hooks/useAuth';
-import { getApiErrorMessage } from '../api/axiosClient';
-import { isValidEmail, validatePassword } from '../utils/validation';
+import { isValidEmail, mapAuthApiError, utf8Length } from '../utils/authErrors';
 
 const Register = () => {
   const [role, setRole] = useState('student');
@@ -14,7 +13,8 @@ const Register = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreed, setAgreed] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const navigate = useNavigate();
   const { register } = useAuth();
@@ -22,44 +22,44 @@ const Register = () => {
   const handleRegister = async (e) => {
     e.preventDefault();
     const normalizedEmail = email.trim().toLowerCase();
-
-    if (!fullName.trim()) {
-      setError('Vui lòng nhập họ và tên.');
-      return;
-    }
-    if (!isValidEmail(normalizedEmail)) {
-      setError('Email không hợp lệ. Ví dụ đúng: ten@example.com.');
-      return;
-    }
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
-      return;
-    }
-    if (password !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
-      return;
-    }
-    if (!agreed) {
-      setError('Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo mật.');
+    const normalizedName = fullName.trim();
+    const normalizedTeacherKey = teacherRegistrationKey.trim();
+    const nextErrors = {};
+    if (!normalizedName) nextErrors.fullName = 'Vui lòng nhập họ và tên.';
+    else if (normalizedName.length > 150) nextErrors.fullName = 'Họ và tên không được vượt quá 150 ký tự.';
+    if (!normalizedEmail) nextErrors.email = 'Vui lòng nhập email.';
+    else if (!isValidEmail(normalizedEmail)) nextErrors.email = 'Email không đúng định dạng, ví dụ: ten@example.com.';
+    if (!password) nextErrors.password = 'Vui lòng nhập mật khẩu.';
+    else if (password.length < 8) nextErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự.';
+    else if (utf8Length(password) > 72) nextErrors.password = 'Mật khẩu không được vượt quá 72 byte UTF-8.';
+    if (!confirmPassword) nextErrors.confirmPassword = 'Vui lòng nhập lại mật khẩu.';
+    else if (password !== confirmPassword) nextErrors.confirmPassword = 'Mật khẩu xác nhận không khớp.';
+    if (role === 'teacher' && normalizedTeacherKey.length > 256) nextErrors.teacherRegistrationKey = 'Mã mời giáo viên không được vượt quá 256 ký tự.';
+    if (!agreed) nextErrors.agreed = 'Bạn cần đồng ý với Điều khoản sử dụng và Chính sách bảo mật.';
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setFormError('');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
+      setFormError('');
+      setFieldErrors({});
       await register({
         role,
         email: normalizedEmail,
-        full_name: fullName.trim(),
+        full_name: normalizedName,
         password,
-        ...(role === 'teacher' && teacherRegistrationKey
-          ? { teacher_registration_key: teacherRegistrationKey }
+        ...(role === 'teacher' && normalizedTeacherKey
+          ? { teacher_registration_key: normalizedTeacherKey }
           : {}),
       });
-      navigate('/login', { replace: true });
+      navigate('/login', { replace: true, state: { notice: 'Đăng ký thành công. Bạn có thể đăng nhập ngay.' } });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Đăng ký thất bại. Email có thể đã tồn tại.'));
+      const mapped = mapAuthApiError(err, 'register');
+      setFormError(mapped.formError);
+      setFieldErrors(mapped.fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -132,16 +132,17 @@ const Register = () => {
             </div>
 
             {/* Error Alert */}
-            {error && (
+            {formError && (
               <div className="mb-6 p-3 bg-tertiary-container border-[3px] border-pure-black text-on-tertiary-container text-body-sm font-bold shadow-[2px_2px_0px_#000000] flex items-center gap-2">
                 <span className="material-symbols-outlined text-[20px] text-tertiary">error</span>
-                <span>{error}</span>
+                <span>{formError}</span>
               </div>
             )}
 
             {/* Registration Form */}
             <form
               data-testid="register-form"
+              noValidate
               className="space-y-5"
               onSubmit={handleRegister}
             >
@@ -158,7 +159,11 @@ const Register = () => {
                       name="role"
                       value="teacher"
                       checked={role === 'teacher'}
-                      onChange={() => setRole('teacher')}
+                      onChange={() => {
+                        setRole('teacher');
+                        setFieldErrors((current) => ({ ...current, role: '', teacherRegistrationKey: '' }));
+                        setFormError('');
+                      }}
                       className="sr-only"
                     />
                     <div
@@ -180,7 +185,11 @@ const Register = () => {
                       name="role"
                       value="student"
                       checked={role === 'student'}
-                      onChange={() => setRole('student')}
+                      onChange={() => {
+                        setRole('student');
+                        setFieldErrors((current) => ({ ...current, role: '', teacherRegistrationKey: '' }));
+                        setFormError('');
+                      }}
                       className="sr-only"
                     />
                     <div
@@ -195,6 +204,7 @@ const Register = () => {
                     </div>
                   </label>
                 </div>
+                {fieldErrors.role && <p className="mt-2 text-label-sm font-bold text-vivid-red">{fieldErrors.role}</p>}
               </div>
 
               {/* Full Name Field */}
@@ -204,11 +214,19 @@ const Register = () => {
                 </label>
                 <input
                   type="text"
+                  maxLength={150}
                   value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
+                  onChange={(e) => {
+                    setFullName(e.target.value);
+                    setFieldErrors((current) => ({ ...current, fullName: '' }));
+                    setFormError('');
+                  }}
                   placeholder="Nhập họ và tên đầy đủ..."
-                  className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                  aria-invalid={Boolean(fieldErrors.fullName)}
+                  aria-describedby={fieldErrors.fullName ? 'register-name-error' : undefined}
+                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.fullName ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
+                {fieldErrors.fullName && <p id="register-name-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.fullName}</p>}
               </div>
 
               {/* Email Field */}
@@ -221,10 +239,17 @@ const Register = () => {
                   required
                   autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((current) => ({ ...current, email: '' }));
+                    setFormError('');
+                  }}
                   placeholder="email@example.com"
-                  className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
+                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.email ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
+                {fieldErrors.email && <p id="register-email-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.email}</p>}
               </div>
 
               {role === 'teacher' && (
@@ -234,11 +259,19 @@ const Register = () => {
                   </label>
                   <input
                     type="password"
+                    maxLength={256}
                     value={teacherRegistrationKey}
-                    onChange={(e) => setTeacherRegistrationKey(e.target.value)}
+                    onChange={(e) => {
+                      setTeacherRegistrationKey(e.target.value);
+                      setFieldErrors((current) => ({ ...current, teacherRegistrationKey: '' }));
+                      setFormError('');
+                    }}
                     placeholder="Nhập mã mời do quản trị viên cung cấp"
-                    className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                    aria-invalid={Boolean(fieldErrors.teacherRegistrationKey)}
+                    aria-describedby={fieldErrors.teacherRegistrationKey ? 'register-teacher-key-error' : undefined}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.teacherRegistrationKey ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
+                  {fieldErrors.teacherRegistrationKey && <p id="register-teacher-key-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.teacherRegistrationKey}</p>}
                 </div>
               )}
 
@@ -253,10 +286,17 @@ const Register = () => {
                     required
                     autoComplete="new-password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setFieldErrors((current) => ({ ...current, password: '', confirmPassword: '' }));
+                      setFormError('');
+                    }}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                    aria-invalid={Boolean(fieldErrors.password)}
+                    aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.password ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
+                  {fieldErrors.password && <p id="register-password-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.password}</p>}
                 </div>
                 <div>
                   <label className="block text-label-md font-bold text-on-surface mb-1">
@@ -267,10 +307,17 @@ const Register = () => {
                     required
                     autoComplete="new-password"
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    onChange={(e) => {
+                      setConfirmPassword(e.target.value);
+                      setFieldErrors((current) => ({ ...current, confirmPassword: '' }));
+                      setFormError('');
+                    }}
                     placeholder="••••••••"
-                    className="w-full px-4 py-3 bg-surface-container-lowest border-[3px] border-pure-black text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors"
+                    aria-invalid={Boolean(fieldErrors.confirmPassword)}
+                    aria-describedby={fieldErrors.confirmPassword ? 'register-confirm-error' : undefined}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.confirmPassword ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
+                  {fieldErrors.confirmPassword && <p id="register-confirm-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.confirmPassword}</p>}
                 </div>
               </div>
 
@@ -280,7 +327,11 @@ const Register = () => {
                   id="terms"
                   type="checkbox"
                   checked={agreed}
-                  onChange={(e) => setAgreed(e.target.checked)}
+                  onChange={(e) => {
+                    setAgreed(e.target.checked);
+                    setFieldErrors((current) => ({ ...current, agreed: '' }));
+                    setFormError('');
+                  }}
                   className="mt-1 w-5 h-5 accent-pure-black border-[3px] border-pure-black bg-surface-container-lowest cursor-pointer"
                 />
                 <label className="text-body-sm text-on-surface cursor-pointer select-none" htmlFor="terms">
@@ -291,6 +342,7 @@ const Register = () => {
                   của Neo-Learn AI.
                 </label>
               </div>
+              {fieldErrors.agreed && <p className="-mt-3 text-label-sm font-bold text-vivid-red">{fieldErrors.agreed}</p>}
 
               {/* Submit Button */}
               <button

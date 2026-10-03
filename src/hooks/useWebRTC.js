@@ -232,6 +232,10 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
       updateParticipant({ id: event.senderId }, mediaPatch);
       return;
     }
+    if (event.type === 'EMOTION') {
+      updateParticipant({ id: event.senderId }, { emotion: event.payload || event });
+      return;
+    }
     if (event.type === 'signal.offer') {
       const peer = createPeer({ id: event.senderId });
       if (!peer) return;

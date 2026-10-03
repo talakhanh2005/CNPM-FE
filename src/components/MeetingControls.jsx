@@ -7,6 +7,9 @@ const MeetingControls = ({
   leaving = false,
   isTeacher = false,
   isRecording = false,
+  recordingBusy = false,
+  recordingForAnalysis = false,
+  emotionPanelEnabled = true,
   onRecordToggle,
 }) => {
   return (
@@ -72,9 +75,10 @@ const MeetingControls = ({
         {isTeacher && (
           <button
             type="button"
+            disabled={recordingBusy}
             onClick={onRecordToggle}
-            aria-label={isRecording ? 'Dừng ghi hình' : 'Bắt đầu ghi hình'}
-            className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
+            aria-label={isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình và lưu về máy'}
+            className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer disabled:opacity-50 ${
               isRecording
                 ? 'bg-vivid-red text-white animate-pulse'
                 : 'bg-bright-yellow text-pure-black hover:bg-yellow-400'
@@ -84,7 +88,11 @@ const MeetingControls = ({
               {isRecording ? 'stop_circle' : 'fiber_manual_record'}
             </span>
             <span className="hidden sm:inline">
-              {isRecording ? 'Dừng Ghi hình' : 'Ghi hình (AI)'}
+              {recordingBusy
+                ? recordingForAnalysis ? 'Đang tải...' : 'Đang lưu...'
+                : isRecording
+                  ? 'Dừng Ghi hình'
+                  : recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình về máy'}
             </span>
           </button>
         )}
@@ -107,22 +115,38 @@ const MeetingControls = ({
           <span className="hidden sm:inline">Trò chuyện</span>
         </button>
 
-        {/* AI Emotion Panel Toggle */}
         <button
           type="button"
-          onClick={() => onDialogToggle('emotion')}
-          aria-label="Phân tích cảm xúc"
+          onClick={() => onDialogToggle('materials')}
+          aria-label="Tài liệu học tập"
           className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
-            activeDialog === 'emotion'
+            activeDialog === 'materials'
               ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
               : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
           }`}
         >
-          <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-            psychology
-          </span>
-          <span className="hidden sm:inline">AI Cảm xúc</span>
+          <span className="material-symbols-outlined text-[20px]">folder_open</span>
+          <span className="hidden lg:inline">Tài liệu</span>
         </button>
+
+        {/* Realtime emotion is unavailable in after-session analysis mode. */}
+        {emotionPanelEnabled && (
+          <button
+            type="button"
+            onClick={() => onDialogToggle('emotion')}
+            aria-label="Phân tích cảm xúc"
+            className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
+              activeDialog === 'emotion'
+                ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
+                : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[20px]" style={{ fontVariationSettings: "'FILL' 1" }}>
+              psychology
+            </span>
+            <span className="hidden sm:inline">AI Cảm xúc</span>
+          </button>
+        )}
 
         {/* Settings Toggle */}
         <button

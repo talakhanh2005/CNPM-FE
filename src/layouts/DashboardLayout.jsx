@@ -42,7 +42,6 @@ const DashboardLayout = ({
         { id: 'dashboard', label: 'Tổng quan', icon: 'dashboard', path: '/student' },
         { id: 'phong-hoc-cua-toi', label: 'Phòng học của tôi', icon: 'school', path: '/student' },
         { id: 'lich-su-hoc-tap', label: 'Lịch sử học tập', icon: 'history', path: '/student' },
-        { id: 'bao-cao-cam-xuc', label: 'Báo cáo cảm xúc', icon: 'psychology', path: '/bao-cao-cam-xuc' },
       ];
 
   const handleNavClick = (item) => {

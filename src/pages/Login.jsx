@@ -1,39 +1,46 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import AuthLayout from '../layouts/AuthLayout';
 import useAuth from '../hooks/useAuth';
-import { getApiErrorMessage } from '../api/axiosClient';
-import { isValidEmail, validatePassword } from '../utils/validation';
+import { isValidEmail, mapAuthApiError, utf8Length } from '../utils/authErrors';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!isValidEmail(email)) {
-      setError('Email không hợp lệ. Ví dụ đúng: ten@example.com.');
-      return;
-    }
-    const passwordError = validatePassword(password);
-    if (passwordError) {
-      setError(passwordError);
+    const normalizedEmail = email.trim().toLowerCase();
+    const nextErrors = {};
+    if (!normalizedEmail) nextErrors.email = 'Vui lòng nhập email.';
+    else if (!isValidEmail(normalizedEmail)) nextErrors.email = 'Email không đúng định dạng, ví dụ: ten@example.com.';
+    if (!password) nextErrors.password = 'Vui lòng nhập mật khẩu.';
+    else if (password.length < 8) nextErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự.';
+    else if (utf8Length(password) > 72) nextErrors.password = 'Mật khẩu không được vượt quá 72 byte UTF-8.';
+    if (Object.keys(nextErrors).length) {
+      setFieldErrors(nextErrors);
+      setFormError('');
       return;
     }
 
     try {
       setLoading(true);
-      setError('');
-      await login({ email: email.trim().toLowerCase(), password, remember });
+      setFormError('');
+      setFieldErrors({});
+      await login({ email: normalizedEmail, password, remember });
       navigate('/', { replace: true });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'));
+      const mapped = mapAuthApiError(err, 'login');
+      setFormError(mapped.formError);
+      setFieldErrors(mapped.fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -103,16 +110,23 @@ const Login = () => {
             </div>
 
             {/* Error Alert */}
-            {error && (
+            {location.state?.notice && (
+              <div className="mb-space-md p-space-sm bg-emerald-100 border-[3px] border-pure-black text-emerald-900 text-body-sm font-bold shadow-[2px_2px_0px_#000000] flex items-center gap-2">
+                <span className="material-symbols-outlined text-[20px]">check_circle</span>
+                <span>{location.state.notice}</span>
+              </div>
+            )}
+            {formError && (
               <div className="mb-space-md p-space-sm bg-tertiary-container border-[3px] border-pure-black text-on-tertiary-container text-body-sm font-bold shadow-[2px_2px_0px_#000000] flex items-center gap-2">
                 <span className="material-symbols-outlined text-[20px] text-tertiary">error</span>
-                <span>{error}</span>
+                <span>{formError}</span>
               </div>
             )}
 
             {/* Form */}
             <form
               data-testid="login-form"
+              noValidate
               className="flex flex-col gap-space-md"
               onSubmit={handleLogin}
             >
@@ -126,11 +140,18 @@ const Login = () => {
                   type="email"
                   autoComplete="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setFieldErrors((current) => ({ ...current, email: '' }));
+                    setFormError('');
+                  }}
                   placeholder="email@example.com"
                   required
-                  className="w-full px-space-md py-space-sm bg-off-white border-[3px] border-pure-black rounded-none text-body-md text-on-surface focus:bg-bright-yellow focus:outline-none focus:shadow-[4px_4px_0px_#000000] transition-all"
+                  aria-invalid={Boolean(fieldErrors.email)}
+                  aria-describedby={fieldErrors.email ? 'login-email-error' : undefined}
+                  className={`w-full px-space-md py-space-sm bg-off-white border-[3px] rounded-none text-body-md text-on-surface focus:bg-bright-yellow focus:outline-none focus:shadow-[4px_4px_0px_#000000] transition-all ${fieldErrors.email ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
+                {fieldErrors.email && <p id="login-email-error" className="text-label-sm font-bold text-vivid-red">{fieldErrors.email}</p>}
               </div>
 
               <div className="flex flex-col gap-space-xs">
@@ -148,11 +169,18 @@ const Login = () => {
                   type="password"
                   autoComplete="current-password"
                   value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  onChange={(e) => {
+                    setPassword(e.target.value);
+                    setFieldErrors((current) => ({ ...current, password: '' }));
+                    setFormError('');
+                  }}
                   placeholder="••••••••"
                   required
-                  className="w-full px-space-md py-space-sm bg-off-white border-[3px] border-pure-black rounded-none text-body-md text-on-surface focus:bg-bright-yellow focus:outline-none focus:shadow-[4px_4px_0px_#000000] transition-all"
+                  aria-invalid={Boolean(fieldErrors.password)}
+                  aria-describedby={fieldErrors.password ? 'login-password-error' : undefined}
+                  className={`w-full px-space-md py-space-sm bg-off-white border-[3px] rounded-none text-body-md text-on-surface focus:bg-bright-yellow focus:outline-none focus:shadow-[4px_4px_0px_#000000] transition-all ${fieldErrors.password ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
+                {fieldErrors.password && <p id="login-password-error" className="text-label-sm font-bold text-vivid-red">{fieldErrors.password}</p>}
               </div>
 
               <div className="flex items-center gap-space-sm mt-space-xs">

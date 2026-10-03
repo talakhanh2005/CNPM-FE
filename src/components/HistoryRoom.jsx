@@ -1,7 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetingHistory } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
+
+const analysisStatuses = {
+  awaiting_recording: { label: 'Chờ bản ghi', className: 'bg-surface-container-high text-on-surface', icon: 'videocam_off' },
+  awaiting_analysis: { label: 'Chờ yêu cầu AI', className: 'bg-bright-yellow text-pure-black', icon: 'hourglass_top' },
+  pending: { label: 'Đang chờ AI...', className: 'bg-orange-400 text-pure-black animate-pulse', icon: 'progress_activity' },
+  processing: { label: 'Đang xử lý AI...', className: 'bg-orange-400 text-pure-black animate-pulse', icon: 'progress_activity' },
+  completed: { label: 'Phân tích hoàn tất', className: 'bg-emerald-500 text-white', icon: 'check_circle' },
+  failed: { label: 'Phân tích thất bại', className: 'bg-vivid-red text-white', icon: 'error' },
+  not_required: { label: 'Realtime', className: 'bg-surface-container-high text-on-surface', icon: 'speed' },
+};
 
 const History = () => {
   const navigate = useNavigate();
@@ -11,7 +21,7 @@ const History = () => {
   const [filterMode, setFilterMode] = useState('all');
   const [error, setError] = useState('');
 
-  const fetchHistory = useCallback(async () => {
+  const fetchHistory = async () => {
     try {
       const data = await getMeetingHistory();
       setHistory(data?.items || []);
@@ -21,28 +31,23 @@ const History = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   useEffect(() => {
-    const timer = window.setTimeout(() => { void fetchHistory(); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [fetchHistory]);
-
-  const hasProcessing = useMemo(
-    () => history.some((room) => ['pending', 'processing'].includes(room.analysis_status)),
-    [history],
-  );
+    fetchHistory();
+  }, []);
 
   // Auto-refresh when any room is in 'processing' status
   useEffect(() => {
+    const hasProcessing = history.some((r) => ['pending', 'processing'].includes(r.analysis_status));
     if (!hasProcessing) return;
 
-    const interval = window.setInterval(() => {
-      void fetchHistory();
+    const interval = setInterval(() => {
+      fetchHistory();
     }, 2500);
 
-    return () => window.clearInterval(interval);
-  }, [fetchHistory, hasProcessing]);
+    return () => clearInterval(interval);
+  }, [history]);
 
   const filteredHistory = history.filter((item) => {
     const matchesSearch =
@@ -69,11 +74,9 @@ const History = () => {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
   };
 
-  const formatDuration = (meeting) => {
-    if (!meeting.createdAt || !meeting.endedAt) return '—';
-    const durationMs = new Date(meeting.endedAt).getTime() - new Date(meeting.createdAt).getTime();
-    if (!Number.isFinite(durationMs) || durationMs < 0) return '—';
-    return `${Math.max(1, Math.round(durationMs / 60000))} phút`;
+  const formatDuration = (item) => {
+    if (!item.createdAt || !item.endedAt) return item.status === 'active' ? 'Đang diễn ra' : '--';
+    return `${Math.max(0, Math.round((new Date(item.endedAt) - new Date(item.createdAt)) / 60000))} phút`;
   };
 
   return (
@@ -132,7 +135,7 @@ const History = () => {
 
       {/* Main History Table */}
       <div className="bg-off-white border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] overflow-x-auto">
-        {error && <div className="border-b-[3px] border-pure-black bg-tertiary-container p-4 font-bold text-on-tertiary-container">{error}</div>}
+        {error && <div className="m-4 border-[2px] border-pure-black bg-tertiary-container p-3 font-bold">{error}</div>}
         {loading ? (
           <div className="p-12 text-center text-body-lg font-bold">
             Đang tải danh sách lịch sử phòng học...
@@ -164,6 +167,9 @@ const History = () => {
                 const isBatch = item.analysisMode === 'batch';
                 const isProcessing = ['pending', 'processing'].includes(item.analysis_status);
                 const isOngoing = item.status === 'active';
+                const statusInfo = isOngoing
+                  ? { label: 'Đang diễn ra', className: 'bg-emerald-500 text-white', icon: 'sensors' }
+                  : analysisStatuses[item.analysis_status] || analysisStatuses.not_required;
 
                 return (
                   <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
@@ -181,7 +187,7 @@ const History = () => {
                       </div>
                       <div className="text-body-sm text-on-surface-variant flex items-center gap-1 mt-0.5">
                         <span className="material-symbols-outlined text-[16px]">group</span>
-                        {item.participants?.length || 1} người tham gia
+                        {item.studentId ? 2 : 1} người tham gia
                       </div>
                     </td>
 
@@ -210,26 +216,10 @@ const History = () => {
 
                     {/* Status */}
                     <td className="p-space-md border-r-[2px] border-pure-black">
-                      {isProcessing ? (
-                        <span className="px-2.5 py-1 bg-orange-400 text-pure-black text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1.5 animate-pulse">
-                          <span className="material-symbols-outlined text-[16px] animate-spin">
-                            progress_activity
-                          </span>
-                          Đang xử lý AI...
-                        </span>
-                      ) : isOngoing ? (
-                        <span className="px-2.5 py-1 bg-emerald-500 text-white text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-white animate-ping" />
-                          Đang diễn ra
-                        </span>
-                      ) : (
-                        <span className="px-2.5 py-1 bg-surface-container-high text-on-surface text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1">
-                          <span className="material-symbols-outlined text-[16px] text-emerald-700">
-                            check_circle
-                          </span>
-                          Hoàn thành
-                        </span>
-                      )}
+                      <span className={`px-2.5 py-1 text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1.5 ${statusInfo.className}`}>
+                        <span className={`material-symbols-outlined text-[16px] ${isProcessing ? 'animate-spin' : ''}`}>{statusInfo.icon}</span>
+                        {statusInfo.label}
+                      </span>
                     </td>
 
                     {/* Action */}

@@ -79,3 +79,11 @@ export const uploadMeetingRecording = (meetingId, videoBlob) => dataOf(axiosClie
     },
   },
 ));
+
+export const getRecording = (recordingId) => (
+  dataOf(axiosClient.get(`/recordings/${recordingId}`))
+);
+
+export const getRecordingPlayback = (recordingId) => (
+  dataOf(axiosClient.get(`/recordings/${recordingId}/playback`))
+);

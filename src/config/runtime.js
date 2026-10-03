@@ -1,6 +1,8 @@
 const stripTrailingSlash = (value) => value.replace(/\/+$/, '');
 
-export const apiBaseUrl = stripTrailingSlash(import.meta.env.VITE_API_URL || '/api');
+export const apiBaseUrl = stripTrailingSlash(
+  import.meta.env.VITE_API_URL || 'http://localhost:8000',
+);
 
 const defaultWebSocketBaseUrl = () => {
   if (typeof window === 'undefined') return '';
