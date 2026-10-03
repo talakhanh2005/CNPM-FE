@@ -141,7 +141,17 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
     });
 
     connection.onicecandidate = ({ candidate }) => {
-      if (candidate) send({ type: 'signal.ice', targetId: participant.id, payload: candidate.toJSON() });
+      if (candidate) {
+        send({
+          type: 'signal.ice',
+          targetId: participant.id,
+          payload: {
+            candidate: candidate.candidate,
+            sdpMid: candidate.sdpMid,
+            sdpMLineIndex: candidate.sdpMLineIndex,
+          },
+        });
+      }
     };
     connection.ontrack = ({ streams, track }) => {
       const remoteStream = peer.remoteStream || streams[0] || new MediaStream();
