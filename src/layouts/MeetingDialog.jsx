@@ -18,14 +18,16 @@ const MeetingDialog = ({
   connectionStatus,
   meetingId,
   latestEmotion,
-  monitoringStatus,
   recording,
   recordingStatus,
   recordingBusy,
   recordingError,
+  recordingNeedsUpload,
   emotionPanelEnabled = true,
   onAnalyzeRecording,
   onPlaybackRecording,
+  onRetryRecordingUpload,
+  onDownloadPendingRecording,
 }) => {
   if (!activePanel || (activePanel === 'emotion' && !emotionPanelEnabled)) return null;
 
@@ -91,7 +93,7 @@ const MeetingDialog = ({
           </div>
         )}
 
-        {activePanel === 'emotion' && <EmotionPanel meetingId={meetingId} isTeacher={userRole === 'teacher'} latestEmotion={latestEmotion} monitoringStatus={monitoringStatus} />}
+        {activePanel === 'emotion' && <EmotionPanel meetingId={meetingId} isTeacher={userRole === 'teacher'} latestEmotion={latestEmotion} />}
 
         {activePanel === 'materials' && <MeetingMaterials meetingId={meetingId} isTeacher={userRole === 'teacher'} />}
 
@@ -121,8 +123,11 @@ const MeetingDialog = ({
                 status={recordingStatus}
                 busy={recordingBusy}
                 error={recordingError}
+                needsUpload={recordingNeedsUpload}
                 onAnalyze={onAnalyzeRecording}
                 onPlayback={onPlaybackRecording}
+                onRetryUpload={onRetryRecordingUpload}
+                onDownloadPending={onDownloadPendingRecording}
               />
             )}
           </div>

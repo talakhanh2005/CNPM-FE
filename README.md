@@ -121,8 +121,7 @@ src/
 | `/teacher` | Giáo viên | Dashboard giáo viên |
 | `/student` | Học sinh | Dashboard học sinh |
 | `/meeting/:roomId` | Đã đăng nhập | Phòng học WebRTC |
-| `/bao-cao-cam-xuc` | Giáo viên | Báo cáo cảm xúc từ backend |
-| `/report` | Giáo viên | Alias của trang báo cáo |
+| `/report` | Giáo viên | Báo cáo AI của meeting `after_session` |
 
 Route `/` chuyển tới dashboard dựa trên `user.role` do backend trả về.
 

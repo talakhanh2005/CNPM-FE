@@ -7,7 +7,7 @@ const formatTime = (value) => value
   ? new Date(value).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
   : '--:--:--';
 
-const EmotionPanel = ({ meetingId, isTeacher, latestEmotion, monitoringStatus }) => {
+const EmotionPanel = ({ meetingId, isTeacher, latestEmotion }) => {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(Boolean(isTeacher));
   const [error, setError] = useState('');
@@ -64,15 +64,6 @@ const EmotionPanel = ({ meetingId, isTeacher, latestEmotion, monitoringStatus })
           <div className={`${meta.color} h-full`} style={{ width: `${current ? percentOf(current.confidence) : 0}%` }} />
         </div>
       </div>
-
-      {!isTeacher && (
-        <div className="bg-surface border-[2px] border-pure-black p-3 text-body-sm shadow-[2px_2px_0px_#000000]">
-          <div className="flex justify-between gap-3">
-            <span className="font-bold">Gửi frame realtime</span>
-            <span className="font-mono text-secondary font-bold">{monitoringStatus === 'active' || monitoringStatus === 'sending' ? 'Đang hoạt động' : 'Đang chờ camera'}</span>
-          </div>
-        </div>
-      )}
 
       {current?.probabilities && (
         <div className="bg-surface border-[2px] border-pure-black p-3.5 shadow-[2px_2px_0px_#000000] space-y-2">

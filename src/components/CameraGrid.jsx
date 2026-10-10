@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const ParticipantTile = ({ participant, speakerOn, speakerDeviceId }) => {
+const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
@@ -56,12 +56,12 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId }) => {
         </div>
       )}
 
-      {/* Top Left: Emotion Badge */}
-      <div className="absolute top-2 left-2 z-10 bg-surface/90 border-[2px] border-pure-black px-2.5 py-0.5 text-label-sm font-bold text-on-surface flex items-center gap-1 shadow-[2px_2px_0px_#000000]">
-        <span>
-          {emotion?.emotion || 'Chưa có dữ liệu'}
-        </span>
-      </div>
+      {/* Only show a realtime result after the backend has returned one. */}
+      {showEmotion && emotion?.emotion && (
+        <div className="absolute top-2 left-2 z-10 bg-surface/90 border-[2px] border-pure-black px-2.5 py-0.5 text-label-sm font-bold text-on-surface flex items-center gap-1 shadow-[2px_2px_0px_#000000]">
+          <span>{emotion.emotion}</span>
+        </div>
+      )}
 
       {/* Top Right: Mic & Cam Icons */}
       <div className="absolute top-2 right-2 z-10 flex gap-1">
@@ -93,6 +93,7 @@ const MeetingCameraGrid = ({
   participants = [],
   speakerOn = true,
   speakerDeviceId = '',
+  showEmotion = true,
 }) => {
   const count = participants.length;
   const gridClass =
@@ -116,6 +117,7 @@ const MeetingCameraGrid = ({
           participant={participant}
           speakerOn={speakerOn}
           speakerDeviceId={speakerDeviceId}
+          showEmotion={showEmotion && participant.role === 'student'}
         />
       ))}
     </section>

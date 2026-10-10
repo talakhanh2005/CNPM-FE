@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CameraGrid from '../components/CameraGrid';
 import MeetingControls from '../components/MeetingControls';
@@ -42,6 +42,7 @@ const Meeting = () => {
   const exitGuardArmedRef = useRef(false);
   const mediaRecorderRef = useRef(null);
   const recordingChunksRef = useRef([]);
+  const pendingRecordingBlobRef = useRef(null);
   const recordTimerRef = useRef(null);
 
   const [localStream, setLocalStream] = useState(null);
@@ -61,16 +62,32 @@ const Meeting = () => {
   const [recording, setRecording] = useState(null);
   const [recordingStatus, setRecordingStatus] = useState(null);
   const [recordingError, setRecordingError] = useState('');
+  const [recordingNeedsUpload, setRecordingNeedsUpload] = useState(false);
+  const [recordingStarted, setRecordingStarted] = useState(false);
   const [latestEmotion, setLatestEmotion] = useState(null);
+  const [emotionsByStudentId, setEmotionsByStudentId] = useState({});
   const [toastMessage, setToastMessage] = useState('');
   const [iceConfig, setIceConfig] = useState({ meetingId: null, servers: fallbackIceServers });
   const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
 
   const isTeacher = user?.role === 'teacher';
   const emotionPanelEnabled = room?.analysisMode === 'realtime';
+  const emotionViewEnabled = emotionPanelEnabled && isTeacher;
   const iceConfigReady = Boolean(room?.id && iceConfig.meetingId === room.id);
 
+  const handleEmotionResult = useCallback((result) => {
+    if (!result) return;
+    setLatestEmotion(result);
+    if (result.student_id) {
+      setEmotionsByStudentId((current) => ({
+        ...current,
+        [result.student_id]: result,
+      }));
+    }
+  }, []);
+
   const handleStartRecord = () => {
+    if (room?.analysisMode === 'batch' && recordingStarted) return;
     try {
       const streamToRecord = remoteParticipants.find((participant) => (
         participant.role === 'student'
@@ -88,6 +105,8 @@ const Meeting = () => {
       };
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
+      pendingRecordingBlobRef.current = null;
+      setRecordingNeedsUpload(room?.analysisMode === 'batch');
       setRecordingError('');
     } catch (error) {
       const message = error.message || 'Không thể bắt đầu ghi hình.';
@@ -98,6 +117,7 @@ const Meeting = () => {
     }
 
     setIsRecording(true);
+    if (room?.analysisMode === 'batch') setRecordingStarted(true);
     setRecordingSeconds(0);
     clearInterval(recordTimerRef.current);
     recordTimerRef.current = setInterval(() => {
@@ -105,26 +125,30 @@ const Meeting = () => {
     }, 1000);
   };
 
-  const handleStopRecord = async () => {
+  const handleStopRecord = async ({ finalizeForClose = false } = {}) => {
+    if (room?.analysisMode === 'batch' && !finalizeForClose) return false;
     const recorder = mediaRecorderRef.current;
     clearInterval(recordTimerRef.current);
-    setIsRecording(false);
     setRecordingBusy(true);
     setRecordingError('');
 
     try {
-      if (!recorder || !room?.id) throw new Error('Không có dữ liệu ghi hình.');
-      if (recorder.state !== 'inactive') {
+      if ((!recorder && !pendingRecordingBlobRef.current) || !room?.id) {
+        throw new Error('Không có dữ liệu ghi hình.');
+      }
+      if (recorder && recorder.state !== 'inactive') {
         await new Promise((resolve, reject) => {
           recorder.addEventListener('stop', resolve, { once: true });
           recorder.addEventListener('error', reject, { once: true });
           recorder.stop();
         });
       }
-      const videoBlob = new Blob(recordingChunksRef.current, {
-        type: recorder.mimeType || 'video/webm',
+      setIsRecording(false);
+      const videoBlob = pendingRecordingBlobRef.current || new Blob(recordingChunksRef.current, {
+        type: recorder?.mimeType || 'video/webm',
       });
       if (!videoBlob.size) throw new Error('Bản ghi trống.');
+      pendingRecordingBlobRef.current = videoBlob;
 
       if (room.analysisMode === 'realtime') {
         const extension = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
@@ -138,34 +162,58 @@ const Meeting = () => {
         anchor.remove();
         window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
         recordingChunksRef.current = [];
+        pendingRecordingBlobRef.current = null;
         mediaRecorderRef.current = null;
+        setRecordingNeedsUpload(false);
         setToastMessage('Đã lưu bản ghi về máy. Video realtime không được gửi lên backend.');
         setTimeout(() => setToastMessage(''), 5000);
-        return;
+        return true;
       }
 
       const uploaded = await uploadMeetingRecording(room.id, videoBlob);
       setRecording(uploaded);
+      setRecordingStatus({ status: uploaded.status || 'pending' });
       recordingChunksRef.current = [];
+      pendingRecordingBlobRef.current = null;
       mediaRecorderRef.current = null;
-      try {
-        const nextStatus = await requestRecordingAnalysis(uploaded.id);
-        setRecordingStatus(nextStatus);
-        setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
-      } catch (analysisError) {
-        setRecordingStatus({ status: uploaded.status || 'uploaded' });
-        setRecordingError(getApiErrorMessage(analysisError, 'Bản ghi đã lưu nhưng chưa thể yêu cầu AI phân tích.'));
-        setToastMessage('Bản ghi đã lưu. Bạn có thể yêu cầu phân tích lại trong phần cài đặt.');
-      }
+      setRecordingNeedsUpload(false);
+      setToastMessage('Bản ghi đã gửi lên backend. AI sẽ phân tích trong nền.');
       setTimeout(() => setToastMessage(''), 5000);
+      return true;
     } catch (error) {
-      mediaRecorderRef.current = null;
-      setRecordingError(getApiErrorMessage(error, 'Không thể lưu bản ghi.'));
-      setToastMessage('Không thể lưu bản ghi. Vui lòng thử lại.');
-      setTimeout(() => setToastMessage(''), 5000);
+      if (!finalizeForClose) {
+        const message = getApiErrorMessage(error, 'Không thể lưu bản ghi.');
+        setRecordingError(message);
+      }
+      return false;
     } finally {
       setRecordingBusy(false);
     }
+  };
+
+  const handleRetryRecordingUpload = async () => {
+    const uploaded = await handleStopRecord({ finalizeForClose: true });
+    if (uploaded) setRoomError('');
+  };
+
+  const handleDownloadPendingRecording = () => {
+    const videoBlob = pendingRecordingBlobRef.current;
+    if (!videoBlob?.size) {
+      setRecordingError('Không còn dữ liệu bản ghi trong trình duyệt để tải xuống.');
+      return;
+    }
+    const extension = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const downloadUrl = URL.createObjectURL(videoBlob);
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.download = `meeting-${room?.code || room?.id || 'recording'}-${timestamp}.${extension}`;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+    setToastMessage('Đã tải bản ghi dự phòng về máy. Bạn vẫn có thể thử upload lại.');
+    setTimeout(() => setToastMessage(''), 5000);
   };
 
   useEffect(() => {
@@ -187,6 +235,18 @@ const Meeting = () => {
     }
     mediaRecorderRef.current = null;
   }, []);
+
+  useEffect(() => {
+    if (room?.analysisMode !== 'batch' || (!isRecording && !recordingNeedsUpload && !recordingBusy)) {
+      return undefined;
+    }
+    const warnBeforeExit = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warnBeforeExit);
+    return () => window.removeEventListener('beforeunload', warnBeforeExit);
+  }, [isRecording, recordingBusy, recordingNeedsUpload, room?.analysisMode]);
 
   const formatTimer = (seconds) => {
     const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
@@ -308,8 +368,8 @@ const Meeting = () => {
         setRoomError(event.message || 'Kết nối phòng gặp lỗi.');
         return;
       }
-      if (event?.type === 'EMOTION' || event?.type === 'FRAME_RESULT') {
-        setLatestEmotion(event.payload || event);
+      if (event?.type === 'EMOTION' && isTeacher) {
+        handleEmotionResult(event.payload || event);
       }
       void handleEvent(event);
     },
@@ -320,7 +380,7 @@ const Meeting = () => {
     sendRef.current = send;
   }, [send]);
 
-  const monitoringStatus = useEmotionMonitoring({
+  useEmotionMonitoring({
     enabled: Boolean(
       user?.role === 'student'
       && room?.analysisMode === 'realtime'
@@ -329,7 +389,6 @@ const Meeting = () => {
     meetingId: room?.id,
     localStream,
     send,
-    onResult: setLatestEmotion,
   });
 
   useEffect(() => {
@@ -467,10 +526,17 @@ const Meeting = () => {
     try {
       setClosing(true);
       hasLeftRoomRef.current = true;
-      if (isRecording) await handleStopRecord();
-      await closeRoom(room.id);
+      if (isRecording || recordingNeedsUpload || pendingRecordingBlobRef.current) {
+        await handleStopRecord({ finalizeForClose: true });
+      }
+      const meetingId = room.id;
+      const hasAfterSessionReport = room.analysisMode === 'batch';
+      await closeRoom(meetingId);
       close();
-      navigate('/', { replace: true });
+      navigate(
+        hasAfterSessionReport ? `/report?meetingId=${encodeURIComponent(meetingId)}` : '/',
+        { replace: true },
+      );
     } catch (error) {
       hasLeftRoomRef.current = false;
       setRoomError(getApiErrorMessage(error, 'Không thể đóng phòng.'));
@@ -506,12 +572,19 @@ const Meeting = () => {
   };
 
   const participants = [
-    ...remoteParticipants,
+    ...remoteParticipants.map((participant) => ({
+      ...participant,
+      emotion: isTeacher && participant.role === 'student'
+        ? emotionsByStudentId[participant.id] || participant.emotion || null
+        : null,
+    })),
     {
       id: user?.id || 'local-user',
       name: user?.full_name || user?.username || 'Bạn',
+      role: user?.role,
       initials: (user?.full_name || user?.username)?.[0]?.toUpperCase() || 'B',
       isLocal: true,
+      emotion: null,
       stream: localStream,
       cameraOn: mediaState.camera,
     },
@@ -657,6 +730,7 @@ const Meeting = () => {
             participants={participants}
             speakerOn={mediaState.speaker}
             speakerDeviceId={speakerDeviceId}
+            showEmotion={emotionViewEnabled}
           />
 
           {mediaLoading && (
@@ -680,14 +754,16 @@ const Meeting = () => {
           userRole={user?.role}
           meetingId={room?.id}
           latestEmotion={latestEmotion}
-          monitoringStatus={monitoringStatus}
           recording={recording}
           recordingStatus={recordingStatus}
           recordingBusy={recordingBusy}
           recordingError={recordingError}
-          emotionPanelEnabled={emotionPanelEnabled}
+          recordingNeedsUpload={recordingNeedsUpload && !isRecording}
+          emotionPanelEnabled={emotionViewEnabled}
           onAnalyzeRecording={handleAnalyzeRecording}
           onPlaybackRecording={handlePlaybackRecording}
+          onRetryRecordingUpload={handleRetryRecordingUpload}
+          onDownloadPendingRecording={handleDownloadPendingRecording}
           onClose={() => setDialogVisible(false)}
           onAnimationEnd={() => {
             if (!dialogVisible) setDialogPanel(null);
@@ -705,10 +781,12 @@ const Meeting = () => {
         leaving={leaving}
         isTeacher={isTeacher}
         isRecording={isRecording}
+        recordingLocked={room?.analysisMode === 'batch' && recordingStarted}
+        recordingNeedsUpload={recordingNeedsUpload}
         recordingBusy={recordingBusy}
         recordingForAnalysis={room?.analysisMode === 'batch'}
-        emotionPanelEnabled={emotionPanelEnabled}
-        onRecordToggle={isRecording ? handleStopRecord : handleStartRecord}
+        emotionPanelEnabled={emotionViewEnabled}
+        onRecordToggle={isRecording ? () => handleStopRecord() : handleStartRecord}
       />
     </main>
   );

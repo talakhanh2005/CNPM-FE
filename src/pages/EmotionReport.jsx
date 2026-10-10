@@ -30,10 +30,11 @@ const selectTimelinePoints = (timeline = [], maxPoints = 12) => {
 const EmotionReport = () => {
   const location = useLocation();
   const navigationMeeting = location.state?.meeting;
+  const initialMeeting = navigationMeeting?.analysisMode === 'batch' ? navigationMeeting : null;
   const requestedMeetingId = new URLSearchParams(location.search).get('meetingId') || '';
-  const [meetings, setMeetings] = useState(() => navigationMeeting ? [navigationMeeting] : []);
-  const [selectedId, setSelectedId] = useState(navigationMeeting?.id || requestedMeetingId);
-  const [meeting, setMeeting] = useState(navigationMeeting || null);
+  const [meetings, setMeetings] = useState(() => initialMeeting ? [initialMeeting] : []);
+  const [selectedId, setSelectedId] = useState(initialMeeting?.id || requestedMeetingId);
+  const [meeting, setMeeting] = useState(initialMeeting);
   const [report, setReport] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -42,7 +43,7 @@ const EmotionReport = () => {
 
   useEffect(() => {
     let active = true;
-    getMeetingHistory({ offset: 0, limit: 100 })
+    getMeetingHistory({ mode: 'after_session', offset: 0, limit: 100 })
       .then((data) => {
         if (!active) return;
         const items = data?.items || [];
@@ -50,25 +51,38 @@ const EmotionReport = () => {
         setSelectedId((current) => current || items.find((item) => item.status === 'closed')?.id || items[0]?.id || '');
       })
       .catch((historyError) => { if (active) setError(getApiErrorMessage(historyError, 'Không thể tải danh sách phòng.')); })
-      .finally(() => { if (active && !navigationMeeting) setLoading(false); });
+      .finally(() => { if (active && !initialMeeting) setLoading(false); });
     return () => { active = false; };
-  }, [navigationMeeting]);
+  }, [initialMeeting]);
 
   useEffect(() => {
     if (!selectedId) return undefined;
     let active = true;
-    Promise.all([
-      getRoom(selectedId),
-      getMeetingReport(selectedId, { source: 'auto', offset: 0, limit: 2000 }),
-    ])
-      .then(([nextMeeting, nextReport]) => {
+    const loadReport = async () => {
+      try {
+        const nextMeeting = await getRoom(selectedId);
+        if (nextMeeting.analysisMode !== 'batch') {
+          throw new Error('Meeting realtime không có báo cáo sau buổi học.');
+        }
+        const nextReport = await getMeetingReport(selectedId, {
+          source: 'batch',
+          offset: 0,
+          limit: 2000,
+        });
         if (!active) return;
         setMeeting(nextMeeting);
         setReport(nextReport);
         setError('');
-      })
-      .catch((loadError) => { if (active) setError(getApiErrorMessage(loadError, 'Không thể tải báo cáo meeting.')); })
-      .finally(() => { if (active) setLoading(false); });
+      } catch (loadError) {
+        if (!active) return;
+        setMeeting(null);
+        setReport(null);
+        setError(getApiErrorMessage(loadError, 'Không thể tải báo cáo meeting.'));
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void loadReport();
     return () => { active = false; };
   }, [refreshTick, selectedId]);
 
@@ -135,15 +149,15 @@ const EmotionReport = () => {
   };
 
   return (
-    <DashboardLayout activeTab="bao-cao-cam-xuc">
+    <DashboardLayout activeTab="report">
       <div className="flex flex-col w-full max-w-7xl mx-auto p-gutter md:p-margin pb-24 font-body">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-xl border-b-[3px] border-pure-black pb-space-lg">
           <div>
             <div className="flex items-center gap-space-sm mb-space-xs flex-wrap">
               <span className="px-2.5 py-0.5 bg-primary text-on-primary text-label-sm font-bold uppercase border border-pure-black">Báo cáo sau buổi học</span>
-              <span className={`px-2.5 py-0.5 ${meeting?.analysisMode === 'batch' ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'} text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]`}>
+              <span className="px-2.5 py-0.5 bg-royal-blue text-white text-label-sm font-bold border border-pure-black flex items-center gap-1 shadow-[1px_1px_0px_#000000]">
                 <span className="material-symbols-outlined text-[14px]">psychology</span>
-                {meeting?.analysisMode === 'batch' ? 'AI đánh giá sau (Video Recording)' : 'Phân tích Realtime'}
+                AI đánh giá sau (Video Recording)
               </span>
               <span className="text-body-sm text-on-surface-variant font-mono font-bold">Ngày {formatDate(meeting?.createdAt)}</span>
             </div>

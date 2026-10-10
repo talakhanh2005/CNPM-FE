@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMeetingHistory } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
+
+const PAGE_SIZE = 20;
 
 const analysisStatuses = {
   awaiting_recording: { label: 'Chờ bản ghi', className: 'bg-surface-container-high text-on-surface', icon: 'videocam_off' },
@@ -15,27 +17,47 @@ const analysisStatuses = {
 
 const History = () => {
   const navigate = useNavigate();
+  const historyLengthRef = useRef(0);
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterMode, setFilterMode] = useState('all');
   const [error, setError] = useState('');
 
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async ({ append = false, refresh = false } = {}) => {
+    const limit = refresh ? Math.max(PAGE_SIZE, historyLengthRef.current) : PAGE_SIZE;
+    const offset = append ? historyLengthRef.current : 0;
     try {
-      const data = await getMeetingHistory();
-      setHistory(data?.items || []);
+      if (append) setLoadingMore(true);
+      const data = await getMeetingHistory({ offset, limit });
+      const items = data?.items || [];
+      if (append) {
+        setHistory((current) => {
+          const existingIds = new Set(current.map((item) => item.id));
+          const next = [...current, ...items.filter((item) => !existingIds.has(item.id))];
+          historyLengthRef.current = next.length;
+          return next;
+        });
+      } else {
+        historyLengthRef.current = items.length;
+        setHistory(items);
+      }
+      if (!refresh) setHasMore(items.length === limit);
+      if (refresh && items.length < limit) setHasMore(false);
       setError('');
     } catch (err) {
       setError(getApiErrorMessage(err, 'Không thể tải lịch sử phòng.'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    void fetchHistory();
+  }, [fetchHistory]);
 
   // Auto-refresh when any room is in 'processing' status
   useEffect(() => {
@@ -43,11 +65,11 @@ const History = () => {
     if (!hasProcessing) return;
 
     const interval = setInterval(() => {
-      fetchHistory();
+      void fetchHistory({ refresh: true });
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [history]);
+  }, [fetchHistory, history]);
 
   const filteredHistory = history.filter((item) => {
     const matchesSearch =
@@ -63,7 +85,7 @@ const History = () => {
   });
 
   const handleViewDetail = (meeting) => {
-    navigate('/bao-cao-cam-xuc', {
+    navigate('/report', {
       state: { meeting },
     });
   };
@@ -166,6 +188,8 @@ const History = () => {
               {filteredHistory.map((item) => {
                 const isBatch = item.analysisMode === 'batch';
                 const isProcessing = ['pending', 'processing'].includes(item.analysis_status);
+                const reportUnavailable = !isBatch;
+                const actionDisabled = isProcessing || reportUnavailable;
                 const isOngoing = item.status === 'active';
                 const statusInfo = isOngoing
                   ? { label: 'Đang diễn ra', className: 'bg-emerald-500 text-white', icon: 'sensors' }
@@ -226,16 +250,16 @@ const History = () => {
                     <td className="p-space-md text-center">
                       <button
                         type="button"
-                        disabled={isProcessing}
+                        disabled={actionDisabled}
                         onClick={() => handleViewDetail(item)}
                         className={`px-3.5 py-1.5 font-bold text-label-md border-[2px] border-pure-black transition-all flex items-center justify-center gap-1 mx-auto cursor-pointer ${
-                          isProcessing
+                          actionDisabled
                             ? 'bg-surface-variant text-on-surface-variant opacity-60 cursor-not-allowed'
                             : 'bg-bright-yellow text-pure-black shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none'
                         }`}
                       >
-                        <span className="material-symbols-outlined text-[18px]">insights</span>
-                        Xem chi tiết
+                        <span className="material-symbols-outlined text-[18px]">{reportUnavailable ? 'block' : 'insights'}</span>
+                        {reportUnavailable ? 'Không có report' : 'Xem chi tiết'}
                       </button>
                     </td>
                   </tr>
@@ -243,6 +267,19 @@ const History = () => {
               })}
             </tbody>
           </table>
+        )}
+        {!loading && hasMore && (
+          <div className="flex items-center justify-center gap-3 border-t-[3px] border-pure-black p-4">
+            <span className="text-label-sm text-on-surface-variant">Đã tải {history.length} phòng</span>
+            <button
+              type="button"
+              disabled={loadingMore}
+              onClick={() => fetchHistory({ append: true })}
+              className="px-4 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+            >
+              {loadingMore ? 'Đang tải...' : `Tải thêm ${PAGE_SIZE} phòng`}
+            </button>
+          </div>
         )}
       </div>
     </div>

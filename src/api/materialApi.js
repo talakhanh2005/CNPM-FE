@@ -13,7 +13,7 @@ const documentMimes = {
   txt: 'text/plain',
 };
 
-export const uploadMaterial = (meetingId, file) => dataOf(axiosClient.post(
+export const uploadMaterial = (meetingId, file, options = {}) => dataOf(axiosClient.post(
   `/meetings/${meetingId}/materials`,
   file,
   {
@@ -21,6 +21,7 @@ export const uploadMaterial = (meetingId, file) => dataOf(axiosClient.post(
     headers: {
       'Content-Type': documentMimes[file.name.split('.').pop()?.toLowerCase()] || file.type || 'application/octet-stream',
     },
+    onUploadProgress: options.onUploadProgress,
   },
 ));
 

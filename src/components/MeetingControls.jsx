@@ -7,6 +7,8 @@ const MeetingControls = ({
   leaving = false,
   isTeacher = false,
   isRecording = false,
+  recordingLocked = false,
+  recordingNeedsUpload = false,
   recordingBusy = false,
   recordingForAnalysis = false,
   emotionPanelEnabled = true,
@@ -75,9 +77,13 @@ const MeetingControls = ({
         {isTeacher && (
           <button
             type="button"
-            disabled={recordingBusy}
+            disabled={recordingBusy || recordingLocked}
             onClick={onRecordToggle}
-            aria-label={isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình và lưu về máy'}
+            aria-label={recordingLocked
+              ? isRecording
+                ? 'Đang ghi hình đến khi giáo viên đóng phòng'
+                : recordingNeedsUpload ? 'Bản ghi đang chờ upload' : 'Bản ghi đã upload'
+              : isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình và lưu về máy'}
             className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer disabled:opacity-50 ${
               isRecording
                 ? 'bg-vivid-red text-white animate-pulse'
@@ -85,12 +91,16 @@ const MeetingControls = ({
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">
-              {isRecording ? 'stop_circle' : 'fiber_manual_record'}
+              {recordingLocked
+                ? isRecording ? 'fiber_manual_record' : recordingNeedsUpload ? 'cloud_upload' : 'cloud_done'
+                : isRecording ? 'stop_circle' : 'fiber_manual_record'}
             </span>
             <span className="hidden sm:inline">
               {recordingBusy
                 ? recordingForAnalysis ? 'Đang tải...' : 'Đang lưu...'
-                : isRecording
+                : recordingLocked
+                  ? isRecording ? 'Đang ghi đến khi đóng phòng' : recordingNeedsUpload ? 'Chờ upload bản ghi' : 'Bản ghi đã upload'
+                  : isRecording
                   ? 'Dừng Ghi hình'
                   : recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình về máy'}
             </span>

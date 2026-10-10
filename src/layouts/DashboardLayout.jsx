@@ -36,7 +36,7 @@ const DashboardLayout = ({
         { id: 'dashboard', label: 'Dashboard', icon: 'dashboard', path: '/teacher' },
         { id: 'phong-hoc', label: 'Phòng học', icon: 'school', path: '/teacher' },
         { id: 'lich-su', label: 'Lịch sử', icon: 'history', path: '/teacher' },
-        { id: 'bao-cao-cam-xuc', label: 'Báo cáo cảm xúc', icon: 'psychology', path: '/bao-cao-cam-xuc' },
+        { id: 'report', label: 'Báo cáo cảm xúc', icon: 'psychology', path: '/report' },
       ]
     : [
         { id: 'dashboard', label: 'Tổng quan', icon: 'dashboard', path: '/student' },

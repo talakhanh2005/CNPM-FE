@@ -1,8 +1,41 @@
 import { useEffect, useRef, useState } from 'react';
 import { getMaterialDownload, getMeetingMaterials, uploadMaterial } from '../api/materialApi';
-import { getApiErrorMessage } from '../api/axiosClient';
+import { getApiErrorMessage, getApiErrorPayload } from '../api/axiosClient';
 
 const ACCEPTED_DOCUMENTS = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt';
+const ACCEPTED_EXTENSIONS = new Set(ACCEPTED_DOCUMENTS.split(','));
+const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
+const MATERIAL_PAGE_SIZE = 20;
+
+const materialErrorMessages = {
+  DOCUMENT_TOO_LARGE: 'Tài liệu vượt quá giới hạn 20 MB.',
+  EMPTY_DOCUMENT: 'Tài liệu đang trống.',
+  INVALID_FILENAME: 'Tên tài liệu không hợp lệ.',
+  UNSUPPORTED_DOCUMENT: 'Định dạng tài liệu không được hỗ trợ.',
+  INVALID_DOCUMENT: 'Nội dung tài liệu không đúng với định dạng tệp.',
+  UPLOAD_BUSY: 'Backend đang xử lý một tệp khác. Vui lòng thử lại sau.',
+  UPLOAD_TIMEOUT: 'Tải tài liệu lên quá thời gian cho phép. Vui lòng thử lại.',
+  MATERIAL_NOT_FOUND: 'Tài liệu không còn tồn tại.',
+};
+
+const getMaterialErrorMessage = (error, fallback) => {
+  const payload = getApiErrorPayload(error);
+  return materialErrorMessages[payload.code] || getApiErrorMessage(error, fallback);
+};
+
+const validateDocument = (file) => {
+  const extensionIndex = file.name.lastIndexOf('.');
+  const extension = extensionIndex >= 0 ? file.name.slice(extensionIndex).toLowerCase() : '';
+  if (!file.name || file.name.length > 255 || /[/\\\r\n\0]/.test(file.name)) {
+    return 'Tên tài liệu không hợp lệ hoặc dài quá 255 ký tự.';
+  }
+  if (!ACCEPTED_EXTENSIONS.has(extension)) {
+    return 'Chỉ hỗ trợ PDF, Word, PowerPoint, Excel và TXT.';
+  }
+  if (!file.size) return 'Tài liệu đang trống.';
+  if (file.size > MAX_DOCUMENT_BYTES) return 'Tài liệu vượt quá giới hạn 20 MB.';
+  return '';
+};
 
 const formatBytes = (bytes = 0) => {
   if (bytes < 1024) return `${bytes} B`;
@@ -14,29 +47,52 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
   const inputRef = useRef(null);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [downloadingId, setDownloadingId] = useState(null);
   const [error, setError] = useState('');
 
-  const loadMaterials = async () => {
+  const loadMaterials = async ({ append = false } = {}) => {
     if (!meetingId) return;
     try {
-      const data = await getMeetingMaterials(meetingId, { offset: 0, limit: 100 });
-      setMaterials(Array.isArray(data) ? data : []);
+      if (append) setLoadingMore(true);
+      else setLoading(true);
+      const data = await getMeetingMaterials(meetingId, {
+        offset: append ? materials.length : 0,
+        limit: MATERIAL_PAGE_SIZE,
+      });
+      const items = Array.isArray(data) ? data : [];
+      if (append) {
+        setMaterials((current) => {
+          const existingIds = new Set(current.map((item) => item.id));
+          return [...current, ...items.filter((item) => !existingIds.has(item.id))];
+        });
+      } else {
+        setMaterials(items);
+      }
+      setHasMore(items.length === MATERIAL_PAGE_SIZE);
       setError('');
     } catch (loadError) {
-      setError(getApiErrorMessage(loadError, 'Không thể tải tài liệu phòng học.'));
+      setError(getMaterialErrorMessage(loadError, 'Không thể tải tài liệu phòng học.'));
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
 
   useEffect(() => {
     let active = true;
     if (!meetingId) return undefined;
-    getMeetingMaterials(meetingId, { offset: 0, limit: 100 })
-      .then((data) => { if (active) setMaterials(Array.isArray(data) ? data : []); })
-      .catch((loadError) => { if (active) setError(getApiErrorMessage(loadError, 'Không thể tải tài liệu phòng học.')); })
+    getMeetingMaterials(meetingId, { offset: 0, limit: MATERIAL_PAGE_SIZE })
+      .then((data) => {
+        if (!active) return;
+        const items = Array.isArray(data) ? data : [];
+        setMaterials(items);
+        setHasMore(items.length === MATERIAL_PAGE_SIZE);
+      })
+      .catch((loadError) => { if (active) setError(getMaterialErrorMessage(loadError, 'Không thể tải tài liệu phòng học.')); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [meetingId]);
@@ -45,15 +101,27 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
     const file = event.target.files?.[0];
     event.target.value = '';
     if (!file) return;
+    const validationError = validateDocument(file);
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     try {
       setUploading(true);
+      setUploadProgress(0);
       setError('');
-      await uploadMaterial(meetingId, file);
+      await uploadMaterial(meetingId, file, {
+        onUploadProgress: ({ loaded, total }) => {
+          if (!total) return;
+          setUploadProgress(Math.min(100, Math.round((loaded * 100) / total)));
+        },
+      });
       await loadMaterials();
     } catch (uploadError) {
-      setError(getApiErrorMessage(uploadError, 'Không thể tải tài liệu lên.'));
+      setError(getMaterialErrorMessage(uploadError, 'Không thể tải tài liệu lên.'));
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -63,9 +131,13 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
       setError('');
       const playback = await getMaterialDownload(material.id);
       if (!playback?.url) throw new Error('Missing download URL');
-      window.open(playback.url, '_blank', 'noopener,noreferrer');
+      const anchor = document.createElement('a');
+      anchor.href = playback.url;
+      anchor.target = '_blank';
+      anchor.rel = 'noopener noreferrer';
+      anchor.click();
     } catch (downloadError) {
-      setError(getApiErrorMessage(downloadError, 'Không thể tạo liên kết tải tài liệu.'));
+      setError(getMaterialErrorMessage(downloadError, 'Không thể tạo liên kết tải tài liệu.'));
     } finally {
       setDownloadingId(null);
     }
@@ -87,7 +159,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
               onClick={() => inputRef.current?.click()}
               className="shrink-0 px-3 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] disabled:opacity-50"
             >
-              {uploading ? 'Đang tải...' : 'Tải lên'}
+              {uploading ? `Đang tải${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Tải lên'}
             </button>
           </div>
         </div>
@@ -96,7 +168,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
       {error && <div className="bg-tertiary-container border-[2px] border-pure-black p-3 text-body-sm font-bold">{error}</div>}
       <div className="flex items-center justify-between">
         <span className="text-label-sm font-bold uppercase">Tài liệu trong phòng</span>
-        <button type="button" onClick={loadMaterials} className="text-label-sm font-bold underline">Làm mới</button>
+        <button type="button" disabled={loading || uploading} onClick={loadMaterials} className="text-label-sm font-bold underline disabled:opacity-50">Làm mới</button>
       </div>
       {loading && <div className="border-[2px] border-pure-black bg-surface p-4 text-center text-body-sm">Đang tải tài liệu...</div>}
       {!loading && !materials.length && <div className="border-[2px] border-pure-black bg-surface p-5 text-center text-body-sm text-on-surface-variant">Chưa có tài liệu nào được chia sẻ.</div>}
@@ -122,6 +194,16 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
           </div>
         ))}
       </div>
+      {!loading && hasMore && (
+        <button
+          type="button"
+          disabled={loadingMore}
+          onClick={() => loadMaterials({ append: true })}
+          className="w-full px-3 py-2 bg-surface-container border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+        >
+          {loadingMore ? 'Đang tải...' : 'Tải thêm tài liệu'}
+        </button>
+      )}
     </div>
   );
 };

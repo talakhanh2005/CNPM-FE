@@ -175,7 +175,7 @@ const TeacherHome = () => {
 
               <button
                 type="button"
-                onClick={() => navigate('/bao-cao-cam-xuc')}
+                onClick={() => navigate('/report')}
                 className="flex-1 md:flex-none px-space-md py-space-sm bg-surface-container-lowest text-on-surface border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] transition-all flex items-center justify-center gap-space-sm cursor-pointer"
               >
                 <span className="material-symbols-outlined">psychology</span>
@@ -260,14 +260,16 @@ const TeacherHome = () => {
                       <span className="material-symbols-outlined text-[18px]">meeting_room</span>
                       Vào phòng
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => navigate('/bao-cao-cam-xuc', { state: { meeting: item } })}
-                      className="px-space-md py-2 bg-surface-container-lowest text-on-surface font-label-md font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">insights</span>
-                      Báo cáo
-                    </button>
+                    {item.analysisMode === 'batch' && (
+                      <button
+                        type="button"
+                        onClick={() => navigate('/report', { state: { meeting: item } })}
+                        className="px-space-md py-2 bg-surface-container-lowest text-on-surface font-label-md font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">insights</span>
+                        Báo cáo
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}
