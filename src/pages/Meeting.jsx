@@ -1,0 +1,717 @@
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import CameraGrid from '../components/CameraGrid';
+import MeetingControls from '../components/MeetingControls';
+import MeetingDialog from '../layouts/MeetingDialog';
+import useAuth from '../hooks/useAuth';
+import useEmotionMonitoring from '../hooks/useEmotionMonitoring';
+import useWebRTC from '../hooks/useWebRTC';
+import useWebSocket from '../hooks/useWebSocket';
+import { closeRoom, getIceConfig, getRecordingPlayback, getRoom, leaveRoom, uploadMeetingRecording } from '../api/meetingApi';
+import { getRecordingStatus, requestRecordingAnalysis } from '../api/reportApi';
+import { getApiErrorMessage } from '../api/axiosClient';
+import { fallbackIceServers, normalizeIceServers } from '../config/iceServers';
+import { takeRetainedMediaStream } from '../utils/mediaSession';
+import { getEmotionMeta, percentOf } from '../utils/emotions';
+
+const defaultMediaState = { mic: false, speaker: true, camera: false };
+
+const Meeting = () => {
+  const { roomId } = useParams();
+  const { state: navigationState } = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [room, setRoom] = useState(() => navigationState?.room || null);
+  const [roomLoading, setRoomLoading] = useState(() => !navigationState?.room);
+  const initialMediaState = useMemo(() => ({
+    camera: navigationState?.media?.camera ?? defaultMediaState.camera,
+    mic: navigationState?.media?.mic ?? defaultMediaState.mic,
+    speaker: true,
+  }), [navigationState?.media?.camera, navigationState?.media?.mic]);
+  const cameraDeviceId = navigationState?.media?.cameraDeviceId || '';
+  const micDeviceId = navigationState?.media?.micDeviceId || '';
+  const speakerDeviceId = navigationState?.media?.speakerDeviceId || '';
+
+  const streamRef = useRef(null);
+  const transferredStreamRef = useRef(null);
+  const streamCleanupArmedRef = useRef(false);
+  const mediaStateRef = useRef(initialMediaState);
+  const mediaOperationRef = useRef(Promise.resolve());
+  const sendRef = useRef(() => false);
+  const hasLeftRoomRef = useRef(false);
+  const exitGuardArmedRef = useRef(false);
+  const mediaRecorderRef = useRef(null);
+  const recordingChunksRef = useRef([]);
+  const recordTimerRef = useRef(null);
+
+  const [localStream, setLocalStream] = useState(null);
+  const [mediaState, setMediaState] = useState(initialMediaState);
+  const [mediaLoading, setMediaLoading] = useState(Boolean(initialMediaState.camera || initialMediaState.mic));
+  const [mediaError, setMediaError] = useState('');
+  const [roomError, setRoomError] = useState('');
+  const [leaving, setLeaving] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [dialogPanel, setDialogPanel] = useState(null);
+  const [dialogVisible, setDialogVisible] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [sessionSeconds, setSessionSeconds] = useState(0);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordingBusy, setRecordingBusy] = useState(false);
+  const [recording, setRecording] = useState(null);
+  const [recordingStatus, setRecordingStatus] = useState(null);
+  const [recordingError, setRecordingError] = useState('');
+  const [latestEmotion, setLatestEmotion] = useState(null);
+  const [toastMessage, setToastMessage] = useState('');
+  const [iceConfig, setIceConfig] = useState({ meetingId: null, servers: fallbackIceServers });
+  const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
+
+  const isTeacher = user?.role === 'teacher';
+  const emotionPanelEnabled = room?.analysisMode === 'realtime';
+  const iceConfigReady = Boolean(room?.id && iceConfig.meetingId === room.id);
+
+  const handleStartRecord = () => {
+    try {
+      const streamToRecord = remoteParticipants.find((participant) => (
+        participant.role === 'student'
+        && participant.stream?.getVideoTracks().some((track) => track.readyState === 'live')
+      ))?.stream;
+      if (!window.MediaRecorder) throw new Error('Trình duyệt không hỗ trợ ghi hình.');
+      if (!streamToRecord) throw new Error('Chưa nhận được video của học sinh để ghi hình.');
+
+      const mimeType = ['video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
+        .find((type) => MediaRecorder.isTypeSupported?.(type));
+      const recorder = new MediaRecorder(streamToRecord, mimeType ? { mimeType } : undefined);
+      recordingChunksRef.current = [];
+      recorder.ondataavailable = ({ data }) => {
+        if (data?.size) recordingChunksRef.current.push(data);
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+      setRecordingError('');
+    } catch (error) {
+      const message = error.message || 'Không thể bắt đầu ghi hình.';
+      setRecordingError(message);
+      setToastMessage(message);
+      setTimeout(() => setToastMessage(''), 5000);
+      return;
+    }
+
+    setIsRecording(true);
+    setRecordingSeconds(0);
+    clearInterval(recordTimerRef.current);
+    recordTimerRef.current = setInterval(() => {
+      setRecordingSeconds((s) => s + 1);
+    }, 1000);
+  };
+
+  const handleStopRecord = async () => {
+    const recorder = mediaRecorderRef.current;
+    clearInterval(recordTimerRef.current);
+    setIsRecording(false);
+    setRecordingBusy(true);
+    setRecordingError('');
+
+    try {
+      if (!recorder || !room?.id) throw new Error('Không có dữ liệu ghi hình.');
+      if (recorder.state !== 'inactive') {
+        await new Promise((resolve, reject) => {
+          recorder.addEventListener('stop', resolve, { once: true });
+          recorder.addEventListener('error', reject, { once: true });
+          recorder.stop();
+        });
+      }
+      const videoBlob = new Blob(recordingChunksRef.current, {
+        type: recorder.mimeType || 'video/webm',
+      });
+      if (!videoBlob.size) throw new Error('Bản ghi trống.');
+
+      if (room.analysisMode === 'realtime') {
+        const extension = videoBlob.type.includes('mp4') ? 'mp4' : 'webm';
+        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const downloadUrl = URL.createObjectURL(videoBlob);
+        const anchor = document.createElement('a');
+        anchor.href = downloadUrl;
+        anchor.download = `meeting-${room.code || room.id}-${timestamp}.${extension}`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+        recordingChunksRef.current = [];
+        mediaRecorderRef.current = null;
+        setToastMessage('Đã lưu bản ghi về máy. Video realtime không được gửi lên backend.');
+        setTimeout(() => setToastMessage(''), 5000);
+        return;
+      }
+
+      const uploaded = await uploadMeetingRecording(room.id, videoBlob);
+      setRecording(uploaded);
+      recordingChunksRef.current = [];
+      mediaRecorderRef.current = null;
+      try {
+        const nextStatus = await requestRecordingAnalysis(uploaded.id);
+        setRecordingStatus(nextStatus);
+        setToastMessage('Bản ghi đã lưu, AI đang phân tích trong nền.');
+      } catch (analysisError) {
+        setRecordingStatus({ status: uploaded.status || 'uploaded' });
+        setRecordingError(getApiErrorMessage(analysisError, 'Bản ghi đã lưu nhưng chưa thể yêu cầu AI phân tích.'));
+        setToastMessage('Bản ghi đã lưu. Bạn có thể yêu cầu phân tích lại trong phần cài đặt.');
+      }
+      setTimeout(() => setToastMessage(''), 5000);
+    } catch (error) {
+      mediaRecorderRef.current = null;
+      setRecordingError(getApiErrorMessage(error, 'Không thể lưu bản ghi.'));
+      setToastMessage('Không thể lưu bản ghi. Vui lòng thử lại.');
+      setTimeout(() => setToastMessage(''), 5000);
+    } finally {
+      setRecordingBusy(false);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSessionSeconds((sec) => sec + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => () => {
+    clearInterval(recordTimerRef.current);
+    const recorder = mediaRecorderRef.current;
+    if (recorder && recorder.state !== 'inactive') {
+      try {
+        recorder.stop();
+      } catch {
+        // Recorder may already be stopping while the meeting unmounts.
+      }
+    }
+    mediaRecorderRef.current = null;
+  }, []);
+
+  const formatTimer = (seconds) => {
+    const hrs = String(Math.floor(seconds / 3600)).padStart(2, '0');
+    const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, '0');
+    const secs = String(seconds % 60).padStart(2, '0');
+    return `${hrs}:${mins}:${secs}`;
+  };
+
+  useEffect(() => {
+    const roomFromNavigation = navigationState?.room;
+    if (roomFromNavigation) return undefined;
+
+    let active = true;
+    getRoom(roomId)
+      .then((nextRoom) => {
+        if (active) setRoom(nextRoom);
+      })
+      .catch((error) => {
+        if (active) setRoomError(getApiErrorMessage(error, 'Không thể tải phòng.'));
+      })
+      .finally(() => {
+        if (active) setRoomLoading(false);
+      });
+
+    return () => { active = false; };
+  }, [navigationState?.room, roomId]);
+
+  useEffect(() => {
+    let active = true;
+    const transferredStream = transferredStreamRef.current
+      || takeRetainedMediaStream(navigationState?.media?.mediaSessionId);
+
+    if (transferredStream) {
+      transferredStreamRef.current = transferredStream;
+      streamRef.current = transferredStream;
+      setLocalStream(transferredStream);
+      setMediaLoading(false);
+      return () => { active = false; };
+    }
+
+    const getMedia = navigator.mediaDevices?.getUserMedia;
+    if (!getMedia || (!initialMediaState.camera && !initialMediaState.mic)) {
+      return () => { active = false; };
+    }
+
+    getMedia({ video: initialMediaState.camera, audio: initialMediaState.mic })
+      .then((stream) => {
+        if (!active) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        streamRef.current = stream;
+        setLocalStream(stream);
+        setMediaError('');
+      })
+      .catch(() => {
+        if (active) {
+          const disabledMedia = { ...mediaStateRef.current, camera: false, mic: false };
+          mediaStateRef.current = disabledMedia;
+          setMediaState(disabledMedia);
+          setMediaError('Không thể truy cập camera hoặc micro. Bạn vẫn có thể tham gia lớp học.');
+        }
+      })
+      .finally(() => { if (active) setMediaLoading(false); });
+
+    return () => {
+      active = false;
+    };
+  }, [initialMediaState, navigationState?.media?.mediaSessionId]);
+
+  useEffect(() => {
+    streamCleanupArmedRef.current = false;
+    const armCleanup = window.setTimeout(() => { streamCleanupArmedRef.current = true; }, 0);
+
+    return () => {
+      window.clearTimeout(armCleanup);
+      if (!streamCleanupArmedRef.current) return;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!room?.id) return undefined;
+
+    let active = true;
+    const meetingId = room.id;
+    getIceConfig(room.id)
+      .then((config) => {
+        if (active) {
+          setIceConfig({ meetingId, servers: normalizeIceServers(config?.iceServers) });
+        }
+      })
+      .catch(() => {
+        if (active) setIceConfig({ meetingId, servers: fallbackIceServers });
+      });
+
+    return () => { active = false; };
+  }, [room?.id]);
+
+  const { remoteParticipants, handleEvent } = useWebRTC({
+    user,
+    localStream,
+    mediaState,
+    iceServers: iceConfig.servers,
+    send: (message) => sendRef.current(message),
+  });
+  const { send, close } = useWebSocket({
+    meetingId: iceConfigReady ? room?.id : null,
+    user,
+    onEvent: (event) => {
+      if (event?.type === 'room.ended') {
+        hasLeftRoomRef.current = true;
+        navigate('/', { replace: true, state: { notice: 'Giáo viên đã đóng phòng học.' } });
+        return;
+      }
+      if (event?.type === 'socket.error') {
+        if (['AI_BUSY', 'RATE_LIMITED', 'FRAME_TOO_LARGE'].includes(event.payload?.code)) return;
+        setRoomError(event.message || 'Kết nối phòng gặp lỗi.');
+        return;
+      }
+      if (event?.type === 'EMOTION' || event?.type === 'FRAME_RESULT') {
+        setLatestEmotion(event.payload || event);
+      }
+      void handleEvent(event);
+    },
+    onStatus: setConnectionStatus,
+  });
+
+  useEffect(() => {
+    sendRef.current = send;
+  }, [send]);
+
+  const monitoringStatus = useEmotionMonitoring({
+    enabled: Boolean(
+      user?.role === 'student'
+      && room?.analysisMode === 'realtime'
+      && mediaState.camera
+    ),
+    meetingId: room?.id,
+    localStream,
+    send,
+    onResult: setLatestEmotion,
+  });
+
+  useEffect(() => {
+    const recordingId = recording?.id;
+    const status = recordingStatus?.status || recording?.status;
+    if (!recordingId || !['pending', 'processing'].includes(status)) return undefined;
+    let active = true;
+
+    const poll = async () => {
+      try {
+        const nextStatus = await getRecordingStatus(recordingId);
+        if (active) {
+          setRecordingStatus(nextStatus);
+          setRecordingError('');
+        }
+      } catch (error) {
+        if (active) setRecordingError(getApiErrorMessage(error, 'Không thể tải trạng thái phân tích.'));
+      }
+    };
+
+    const timer = window.setInterval(poll, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [recording?.id, recording?.status, recordingStatus?.status]);
+
+  useEffect(() => {
+    if (!room?.id) return undefined;
+    exitGuardArmedRef.current = false;
+    const armExitGuard = window.setTimeout(() => { exitGuardArmedRef.current = true; }, 0);
+    const disconnectOnPageExit = () => {
+      if (hasLeftRoomRef.current) return;
+      hasLeftRoomRef.current = true;
+      close();
+    };
+
+    window.addEventListener('pagehide', disconnectOnPageExit);
+    return () => {
+      window.clearTimeout(armExitGuard);
+      window.removeEventListener('pagehide', disconnectOnPageExit);
+      if (exitGuardArmedRef.current) disconnectOnPageExit();
+    };
+  }, [close, room?.id]);
+
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+    send({
+      type: 'media.status',
+      payload: { camera: mediaState.camera, mic: mediaState.mic },
+    });
+  }, [connectionStatus, mediaState.camera, mediaState.mic, send]);
+
+  const applyMediaState = async (targetState) => {
+    const currentStream = streamRef.current;
+    const currentVideo = currentStream?.getVideoTracks().find((track) => track.readyState !== 'ended');
+    const currentAudio = currentStream?.getAudioTracks().find((track) => track.readyState !== 'ended');
+    if (currentVideo) currentVideo.enabled = targetState.camera;
+    if (currentAudio) currentAudio.enabled = targetState.mic;
+
+    const needsVideo = targetState.camera && !currentVideo;
+    const needsAudio = targetState.mic && !currentAudio;
+    if (!needsVideo && !needsAudio) return;
+
+    try {
+      const addedStream = await navigator.mediaDevices.getUserMedia({
+        video: needsVideo ? (cameraDeviceId ? { deviceId: { exact: cameraDeviceId } } : true) : false,
+        audio: needsAudio ? (micDeviceId ? { deviceId: { exact: micDeviceId } } : true) : false,
+      });
+      const latestStream = streamRef.current;
+      const existingTracks = latestStream?.getTracks() || [];
+      const addedTracks = addedStream.getTracks().filter((track) => !existingTracks.some((existing) => existing.kind === track.kind));
+      const nextStream = latestStream
+        ? new MediaStream([...existingTracks, ...addedTracks])
+        : addedStream;
+      nextStream.getVideoTracks().forEach((track) => { track.enabled = targetState.camera; });
+      nextStream.getAudioTracks().forEach((track) => { track.enabled = targetState.mic; });
+      streamRef.current = nextStream;
+      setLocalStream(nextStream);
+      setMediaError('');
+    } catch {
+      const fallbackState = { ...mediaStateRef.current };
+      if (needsVideo && !streamRef.current?.getVideoTracks().some((track) => track.readyState !== 'ended')) fallbackState.camera = false;
+      if (needsAudio && !streamRef.current?.getAudioTracks().some((track) => track.readyState !== 'ended')) fallbackState.mic = false;
+      mediaStateRef.current = fallbackState;
+      setMediaState(fallbackState);
+      setMediaError('Không thể bật camera hoặc micro. Hãy kiểm tra quyền trình duyệt.');
+    }
+  };
+
+  const toggleMedia = (type) => {
+    if (type === 'speaker') {
+      const nextState = { ...mediaStateRef.current, speaker: !mediaStateRef.current.speaker };
+      mediaStateRef.current = nextState;
+      setMediaState(nextState);
+      return;
+    }
+
+    const nextState = { ...mediaStateRef.current, [type]: !mediaStateRef.current[type] };
+    mediaStateRef.current = nextState;
+    setMediaState(nextState);
+    if (!navigator.mediaDevices?.getUserMedia) return;
+    mediaOperationRef.current = mediaOperationRef.current
+      .catch(() => undefined)
+      .then(() => applyMediaState(nextState));
+  };
+
+  const toggleDialog = (panel) => {
+    if (dialogPanel === panel && dialogVisible) {
+      setDialogVisible(false);
+      return;
+    }
+    setDialogPanel(panel);
+    setDialogVisible(true);
+  };
+
+  const handleLeave = async () => {
+    if (!room || !window.confirm('Bạn có muốn rời khỏi phòng học không?')) return;
+    try {
+      setLeaving(true);
+      hasLeftRoomRef.current = true;
+      await leaveRoom(room.id);
+      close();
+      navigate('/', { replace: true });
+    } catch (error) {
+      hasLeftRoomRef.current = false;
+      setRoomError(getApiErrorMessage(error, 'Không thể rời phòng.'));
+    } finally {
+      setLeaving(false);
+    }
+  };
+
+  const handleCloseRoom = async () => {
+    if (!isTeacher || !room || !window.confirm('Đóng phòng sẽ kết thúc buổi học cho tất cả người tham gia. Bạn có chắc không?')) return;
+    try {
+      setClosing(true);
+      hasLeftRoomRef.current = true;
+      if (isRecording) await handleStopRecord();
+      await closeRoom(room.id);
+      close();
+      navigate('/', { replace: true });
+    } catch (error) {
+      hasLeftRoomRef.current = false;
+      setRoomError(getApiErrorMessage(error, 'Không thể đóng phòng.'));
+    } finally {
+      setClosing(false);
+    }
+  };
+
+  const handleAnalyzeRecording = async () => {
+    if (!recording?.id) return;
+    try {
+      setRecordingBusy(true);
+      setRecordingError('');
+      const nextStatus = await requestRecordingAnalysis(recording.id);
+      setRecordingStatus(nextStatus);
+    } catch (error) {
+      setRecordingError(getApiErrorMessage(error, 'Không thể yêu cầu phân tích bản ghi.'));
+    } finally {
+      setRecordingBusy(false);
+    }
+  };
+
+  const handlePlaybackRecording = async () => {
+    if (!recording?.id) return;
+    try {
+      setRecordingError('');
+      const playback = await getRecordingPlayback(recording.id);
+      if (!playback?.url) throw new Error('Backend không trả về liên kết bản ghi.');
+      window.open(playback.url, '_blank', 'noopener,noreferrer');
+    } catch (error) {
+      setRecordingError(getApiErrorMessage(error, 'Không thể mở bản ghi.'));
+    }
+  };
+
+  const participants = [
+    ...remoteParticipants,
+    {
+      id: user?.id || 'local-user',
+      name: user?.full_name || user?.username || 'Bạn',
+      initials: (user?.full_name || user?.username)?.[0]?.toUpperCase() || 'B',
+      isLocal: true,
+      stream: localStream,
+      cameraOn: mediaState.camera,
+    },
+  ];
+
+  if (roomLoading && !room) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
+        <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000]">
+          <span className="material-symbols-outlined text-[48px] text-bright-yellow animate-spin">
+            progress_activity
+          </span>
+          <p className="mt-4 font-headline font-bold text-headline-sm">Đang tải phòng học...</p>
+        </div>
+      </main>
+    );
+  }
+
+  if (activeRoomError && !room) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
+        <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000] max-w-md">
+          <span className="material-symbols-outlined text-[48px] text-tertiary">error</span>
+          <p className="mt-4 font-headline font-bold text-headline-sm">{activeRoomError}</p>
+          <button
+            type="button"
+            onClick={() => navigate('/')}
+            className="mt-6 px-6 py-2.5 bg-bright-yellow font-bold border-[2px] border-pure-black shadow-[3px_3px_0px_#000000]"
+          >
+            Về trang chủ
+          </button>
+        </div>
+      </main>
+    );
+  }
+
+  return (
+    <main className="relative flex h-screen w-full flex-col overflow-hidden bg-surface font-body text-on-surface">
+      {/* Top Header Control Bar */}
+      <header className="w-full bg-off-white border-b-[3px] border-pure-black px-4 sm:px-gutter py-2.5 sm:py-3 flex items-center justify-between shadow-[4px_4px_0px_#000000] shrink-0 z-20">
+        <div className="flex items-center gap-2 sm:gap-space-md">
+          <div className="bg-primary-container border-[2px] sm:border-[3px] border-pure-black px-2.5 sm:px-space-md py-1 font-headline font-bold text-label-md text-on-primary-container shadow-[2px_2px_0px_#000000] flex items-center gap-1 sm:gap-space-xs">
+            <span className="material-symbols-outlined text-[18px]">vpn_key</span>
+            #{room?.code || roomId}
+            {room?.name && <span className="hidden xl:inline font-mono font-normal">| {room.name}</span>}
+          </div>
+
+          <div className="hidden sm:flex items-center gap-1.5 bg-surface-container border-[2px] border-pure-black px-3 py-1 font-mono text-label-md text-on-surface shadow-[2px_2px_0px_#000000]">
+            <span className="material-symbols-outlined text-[18px]">timer</span>
+            <span>{formatTimer(sessionSeconds)}</span>
+          </div>
+
+          {/* REC Blinking indicator if recording */}
+          {isRecording && (
+            <div className="flex items-center gap-1.5 bg-vivid-red text-white border-[2px] border-pure-black px-3 py-1 font-mono text-label-md font-bold shadow-[2px_2px_0px_#000000] animate-pulse">
+              <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+              <span>REC {formatTimer(recordingSeconds)}</span>
+            </div>
+          )}
+
+          {/* Analysis mode badge */}
+          <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
+            <span>
+              {room?.analysisMode === 'batch'
+                ? 'Chế độ: AI đánh giá sau'
+                : 'AI Cảm xúc: Realtime'}
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 sm:gap-space-md">
+          <div className="hidden lg:flex items-center gap-2 bg-surface-container-low border-[2px] border-pure-black px-3 py-1 font-bold text-label-sm">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>{isTeacher ? 'Chủ tọa (Giáo viên)' : 'Học viên'}</span>
+          </div>
+
+          {isTeacher && (
+            <button
+              type="button"
+              onClick={handleCloseRoom}
+              disabled={closing || leaving}
+              className="px-3.5 py-1.5 bg-vivid-red text-on-error border-[2px] border-pure-black font-headline font-bold text-label-sm uppercase shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center gap-1 cursor-pointer disabled:opacity-50"
+            >
+              <span className="material-symbols-outlined text-[18px]">meeting_room</span>
+              <span>{closing ? 'Đang đóng...' : 'Đóng phòng'}</span>
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Main Workspace Area */}
+      <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* If Teacher: Show live class stats summary row */}
+        {isTeacher && (
+          <div className={`bg-surface-container-low border-b-[2px] border-pure-black px-4 py-2 shrink-0 grid gap-2 text-label-sm ${
+            emotionPanelEnabled ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-1'
+          }`}>
+            <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+              <span className="text-on-surface-variant font-mono">Học sinh:</span>
+              <span className="font-bold text-secondary">
+                {remoteParticipants.filter((participant) => participant.role === 'student').length} bạn
+              </span>
+            </div>
+            {emotionPanelEnabled && (
+              <>
+                <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+                  <span className="text-on-surface-variant font-mono">AI hiện tại:</span>
+                  <span className="font-bold text-emerald-600">
+                    {latestEmotion ? getEmotionMeta(latestEmotion.emotion).label : 'Chưa có mẫu'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+                  <span className="text-on-surface-variant font-mono">Tin cậy:</span>
+                  <span className="font-bold text-tertiary">
+                    {latestEmotion ? `${percentOf(latestEmotion.confidence).toFixed(0)}%` : '--'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
+                  <span className="text-on-surface-variant font-mono">AI Realtime:</span>
+                  <span className="font-bold text-royal-blue uppercase">{connectionStatus}</span>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Video Stage Area */}
+        <section
+          className={`relative flex min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 transition-[padding] duration-300 ${
+            dialogVisible ? 'lg:pr-[390px]' : ''
+          }`}
+        >
+          {/* Toast Notification Banner */}
+          {toastMessage && (
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 border-[3px] border-pure-black bg-bright-yellow text-pure-black px-5 py-2.5 font-bold shadow-[4px_4px_0px_#000000] flex items-center gap-2 text-body-md animate-bounce">
+              <span className="material-symbols-outlined text-[24px]">verified</span>
+              <span>{toastMessage}</span>
+            </div>
+          )}
+
+          <CameraGrid
+            participants={participants}
+            speakerOn={mediaState.speaker}
+            speakerDeviceId={speakerDeviceId}
+          />
+
+          {mediaLoading && (
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 z-20 border-[2px] border-pure-black bg-bright-yellow px-4 py-1.5 text-label-sm font-bold text-pure-black shadow-[3px_3px_0px_#000000]">
+              Đang chuẩn bị camera và micro...
+            </div>
+          )}
+
+          {(mediaError || activeRoomError) && !mediaLoading && (
+            <div className="absolute bottom-5 left-1/2 max-w-[calc(100%-32px)] -translate-x-1/2 z-20 border-[3px] border-pure-black bg-tertiary-container px-4 py-2 text-center text-body-sm font-bold text-on-tertiary-container shadow-[4px_4px_0px_#000000]">
+              {mediaError || activeRoomError}
+            </div>
+          )}
+        </section>
+
+        {/* Dialog Panel (Chat / Emotion / Settings) */}
+        <MeetingDialog
+          activePanel={dialogPanel}
+          isVisible={dialogVisible}
+          connectionStatus={connectionStatus}
+          userRole={user?.role}
+          meetingId={room?.id}
+          latestEmotion={latestEmotion}
+          monitoringStatus={monitoringStatus}
+          recording={recording}
+          recordingStatus={recordingStatus}
+          recordingBusy={recordingBusy}
+          recordingError={recordingError}
+          emotionPanelEnabled={emotionPanelEnabled}
+          onAnalyzeRecording={handleAnalyzeRecording}
+          onPlaybackRecording={handlePlaybackRecording}
+          onClose={() => setDialogVisible(false)}
+          onAnimationEnd={() => {
+            if (!dialogVisible) setDialogPanel(null);
+          }}
+        />
+      </div>
+
+      {/* Bottom Meeting Control Bar */}
+      <MeetingControls
+        mediaState={mediaState}
+        activeDialog={dialogVisible ? dialogPanel : null}
+        onMediaToggle={toggleMedia}
+        onDialogToggle={toggleDialog}
+        onLeave={handleLeave}
+        leaving={leaving}
+        isTeacher={isTeacher}
+        isRecording={isRecording}
+        recordingBusy={recordingBusy}
+        recordingForAnalysis={room?.analysisMode === 'batch'}
+        emotionPanelEnabled={emotionPanelEnabled}
+        onRecordToggle={isRecording ? handleStopRecord : handleStartRecord}
+      />
+    </main>
+  );
+};
+
+export default Meeting;
