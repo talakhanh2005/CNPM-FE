@@ -753,7 +753,7 @@ const Meeting = () => {
           connectionStatus={connectionStatus}
           userRole={user?.role}
           meetingId={room?.id}
-          latestEmotion={latestEmotion}
+          participants={participants}
           recording={recording}
           recordingStatus={recordingStatus}
           recordingBusy={recordingBusy}

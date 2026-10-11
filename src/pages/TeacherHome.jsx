@@ -8,30 +8,6 @@ import useAuth from '../hooks/useAuth';
 import { getMeetingHistory } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 
-const scheduledLessons = [
-  {
-    time: 'Hôm nay, 14:00 - 15:30',
-    title: 'Hình học không gian Oxyz',
-    subtitle: 'Ôn tập chương phương pháp tọa độ',
-    roomClass: '12A2',
-    status: 'Sắp diễn ra',
-  },
-  {
-    time: 'Hôm nay, 16:00 - 17:30',
-    title: 'Dao động cơ học nâng cao',
-    subtitle: 'Con lắc lò xo và bài toán thực tế',
-    roomClass: '11A1',
-    status: 'Sắp diễn ra',
-  },
-  {
-    time: 'Ngày mai, 08:00 - 09:30',
-    title: 'Kim loại kiềm & Kiềm thổ',
-    subtitle: 'Tính chất hóa học và ứng dụng công nghiệp',
-    roomClass: '10C1',
-    status: 'Đã lên lịch',
-  },
-];
-
 const TeacherHome = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -39,7 +15,6 @@ const TeacherHome = () => {
   const [activeTab, setActiveTab] = useState(location.state?.tab || 'dashboard');
   const [joinRoomCode, setJoinRoomCode] = useState(null);
   const [isCreatingRoom, setIsCreatingRoom] = useState(location.state?.tab === 'phong-hoc');
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeClassrooms, setActiveClassrooms] = useState([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [roomsError, setRoomsError] = useState('');
@@ -74,12 +49,6 @@ const TeacherHome = () => {
       window.clearInterval(timer);
     };
   }, []);
-
-  const filteredScheduled = scheduledLessons.filter(
-    (l) =>
-      l.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      l.roomClass.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   return (
     <DashboardLayout
@@ -276,74 +245,7 @@ const TeacherHome = () => {
             </div>
           </section>
 
-          {/* Scheduled Classes Table */}
-          <section className="flex flex-col gap-space-md">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-space-sm">
-              <div>
-                <span className="text-label-sm font-bold text-on-surface-variant tracking-wider uppercase">
-                  Lịch trình hệ thống
-                </span>
-                <h2 className="text-headline-md font-headline font-bold text-on-surface">
-                  Phòng học đã lên lịch
-                </h2>
-              </div>
-              <div className="flex gap-space-sm w-full md:w-auto">
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Tìm kiếm môn học, lớp..."
-                  className="px-space-md py-2 bg-surface-container-lowest border-[3px] border-pure-black text-body-sm focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000] flex-1 md:w-64"
-                />
-              </div>
-            </div>
-
-            <div className="bg-off-white border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-surface-container border-b-[3px] border-pure-black text-label-lg font-bold text-on-surface">
-                    <th className="p-space-md border-r-[3px] border-pure-black">Thời gian</th>
-                    <th className="p-space-md border-r-[3px] border-pure-black">Môn học &amp; Chủ đề</th>
-                    <th className="p-space-md border-r-[3px] border-pure-black">Lớp</th>
-                    <th className="p-space-md border-r-[3px] border-pure-black">Trạng thái</th>
-                    <th className="p-space-md text-center">Hành động</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y-[2px] divide-pure-black text-body-md">
-                  {filteredScheduled.map((item, idx) => (
-                    <tr key={idx} className="hover:bg-surface-container-low transition-colors">
-                      <td className="p-space-md border-r-[3px] border-pure-black font-bold">
-                        {item.time}
-                      </td>
-                      <td className="p-space-md border-r-[3px] border-pure-black">
-                        <div className="font-bold text-on-surface">{item.title}</div>
-                        <div className="text-body-sm text-on-surface-variant">{item.subtitle}</div>
-                      </td>
-                      <td className="p-space-md border-r-[3px] border-pure-black font-bold font-mono">
-                        {item.roomClass}
-                      </td>
-                      <td className="p-space-md border-r-[3px] border-pure-black">
-                        <span className="px-3 py-1 bg-bright-yellow text-on-surface text-label-sm font-bold border-[2px] border-pure-black inline-block">
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="p-space-md text-center">
-                        <div className="flex justify-center gap-space-sm">
-                          <button
-                            type="button"
-                            onClick={() => setIsCreatingRoom(true)}
-                            className="px-3 py-1.5 bg-primary text-on-primary text-label-sm font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all cursor-pointer"
-                          >
-                            Bắt đầu
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
+          {/* Reserved for locked meetings once the backend exposes that state. */}
         </div>
       )}
     </DashboardLayout>

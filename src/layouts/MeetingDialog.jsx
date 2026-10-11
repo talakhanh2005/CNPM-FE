@@ -17,7 +17,7 @@ const MeetingDialog = ({
   userRole,
   connectionStatus,
   meetingId,
-  latestEmotion,
+  participants = [],
   recording,
   recordingStatus,
   recordingBusy,
@@ -29,7 +29,10 @@ const MeetingDialog = ({
   onRetryRecordingUpload,
   onDownloadPendingRecording,
 }) => {
-  if (!activePanel || (activePanel === 'emotion' && !emotionPanelEnabled)) return null;
+  if (
+    !activePanel
+    || (activePanel === 'emotion' && (userRole !== 'teacher' || !emotionPanelEnabled))
+  ) return null;
 
   return (
     <aside
@@ -93,7 +96,7 @@ const MeetingDialog = ({
           </div>
         )}
 
-        {activePanel === 'emotion' && <EmotionPanel meetingId={meetingId} isTeacher={userRole === 'teacher'} latestEmotion={latestEmotion} />}
+        {activePanel === 'emotion' && <EmotionPanel participants={participants} />}
 
         {activePanel === 'materials' && <MeetingMaterials meetingId={meetingId} isTeacher={userRole === 'teacher'} />}
 

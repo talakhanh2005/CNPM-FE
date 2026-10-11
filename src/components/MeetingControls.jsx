@@ -140,7 +140,7 @@ const MeetingControls = ({
         </button>
 
         {/* Realtime emotion is unavailable in after-session analysis mode. */}
-        {emotionPanelEnabled && (
+        {isTeacher && emotionPanelEnabled && (
           <button
             type="button"
             onClick={() => onDialogToggle('emotion')}

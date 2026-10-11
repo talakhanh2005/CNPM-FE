@@ -5,6 +5,11 @@ import { createRoom } from '../api/meetingApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { retainMediaStream } from '../utils/mediaSession';
 
+const participantOptions = [
+  { value: 'free', title: 'Tự do', description: 'Mọi học sinh có mã đều vào được ngay.' },
+  { value: 'approval', title: 'Đợi duyệt', description: 'Giáo viên duyệt học sinh trước khi vào.' },
+];
+
 const analysisOptions = [
   {
     value: 'realtime',
@@ -20,6 +25,7 @@ const analysisOptions = [
 
 const NewRoom = ({ onClose }) => {
   const navigate = useNavigate();
+  const [participantMode, setParticipantMode] = useState('free');
   const [analysisMode, setAnalysisMode] = useState('batch');
   const [lobbyMedia, setLobbyMedia] = useState({ camera: false, mic: false, stream: null });
   const [isExiting, setIsExiting] = useState(false);
@@ -88,6 +94,45 @@ const NewRoom = ({ onClose }) => {
                       value={option.value}
                       checked={isSelected}
                       onChange={(e) => setAnalysisMode(e.target.value)}
+                      className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
+                    />
+                    <div className="min-w-0">
+                      <span className="block text-label-xs font-bold text-on-surface leading-tight">
+                        {option.title}
+                      </span>
+                      <span className="text-[11px] text-on-surface-variant leading-tight block mt-0.5">
+                        {option.description}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {/* Participant Mode */}
+          <fieldset className="space-y-1.5">
+            <legend className="text-label-xs font-bold text-on-surface uppercase">
+              Quản lý người tham gia
+            </legend>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {participantOptions.map((option) => {
+                const isSelected = participantMode === option.value;
+                return (
+                  <label
+                    key={option.value}
+                    className={`flex cursor-pointer items-start gap-2 border-[2px] border-pure-black p-2 transition-all ${
+                      isSelected
+                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
+                        : 'bg-surface hover:bg-surface-container'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="participantMode"
+                      value={option.value}
+                      checked={isSelected}
+                      onChange={(event) => setParticipantMode(event.target.value)}
                       className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
                     />
                     <div className="min-w-0">

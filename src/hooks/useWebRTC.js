@@ -17,12 +17,17 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
   const updateParticipant = useCallback((participant, patch = {}) => {
     setRemoteParticipants((current) => {
       const existing = current.find((item) => item.id === participant.id);
-      const username = participant.username || existing?.name || fallbackName;
+      const participantName = participant.fullName
+        || participant.full_name
+        || participant.name
+        || participant.username
+        || existing?.name
+        || fallbackName;
       const next = {
         ...existing,
         id: participant.id,
-        name: username,
-        initials: participant.username?.[0]?.toUpperCase() || existing?.initials || 'U',
+        name: participantName,
+        initials: participantName[0]?.toUpperCase() || existing?.initials || 'U',
         role: participant.role || existing?.role,
         ...patch,
       };

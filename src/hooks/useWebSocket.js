@@ -34,14 +34,26 @@ const fromWireMessage = (message) => {
     return event.peers.map((peer) => ({
       type: 'participant.present',
       senderId: peer.user_id,
-      payload: { participant: { id: peer.user_id, role: peer.role } },
+      payload: {
+        participant: {
+          id: peer.user_id,
+          role: peer.role,
+          fullName: peer.full_name,
+        },
+      },
     }));
   }
   if (event.type === 'JOIN') {
     return [{
       type: 'participant.joined',
       senderId: event.sender_id,
-      payload: { participant: { id: event.sender_id, role: event.role } },
+      payload: {
+        participant: {
+          id: event.sender_id,
+          role: event.role,
+          fullName: event.full_name,
+        },
+      },
     }];
   }
   if (event.type === 'LEAVE') {
