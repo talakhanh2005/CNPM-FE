@@ -5,16 +5,6 @@ import { getApiErrorMessage } from '../api/axiosClient';
 
 const PAGE_SIZE = 20;
 
-const analysisStatuses = {
-  awaiting_recording: { label: 'Chờ bản ghi', className: 'bg-surface-container-high text-on-surface', icon: 'videocam_off' },
-  awaiting_analysis: { label: 'Chờ yêu cầu AI', className: 'bg-bright-yellow text-pure-black', icon: 'hourglass_top' },
-  pending: { label: 'Đang chờ AI...', className: 'bg-orange-400 text-pure-black animate-pulse', icon: 'progress_activity' },
-  processing: { label: 'Đang xử lý AI...', className: 'bg-orange-400 text-pure-black animate-pulse', icon: 'progress_activity' },
-  completed: { label: 'Phân tích hoàn tất', className: 'bg-emerald-500 text-white', icon: 'check_circle' },
-  failed: { label: 'Phân tích thất bại', className: 'bg-vivid-red text-white', icon: 'error' },
-  not_required: { label: 'Realtime', className: 'bg-surface-container-high text-on-surface', icon: 'speed' },
-};
-
 const History = () => {
   const navigate = useNavigate();
   const historyLengthRef = useRef(0);
@@ -180,8 +170,10 @@ const History = () => {
                 <th className="p-space-md border-r-[2px] border-pure-black">Tên lớp học</th>
                 <th className="p-space-md border-r-[2px] border-pure-black">Loại phân tích</th>
                 <th className="p-space-md border-r-[2px] border-pure-black">Thời gian</th>
-                <th className="p-space-md border-r-[2px] border-pure-black">Trạng thái</th>
-                <th className="p-space-md text-center">Hành động</th>
+                <th className="p-space-md border-r-[2px] border-pure-black text-center">Hành động</th>
+                <th className="w-20 p-space-md text-center">
+                  <span className="sr-only">Xóa meeting</span>
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y-[2px] divide-pure-black text-body-sm">
@@ -190,10 +182,6 @@ const History = () => {
                 const isProcessing = ['pending', 'processing'].includes(item.analysis_status);
                 const reportUnavailable = !isBatch;
                 const actionDisabled = isProcessing || reportUnavailable;
-                const isOngoing = item.status === 'active';
-                const statusInfo = isOngoing
-                  ? { label: 'Đang diễn ra', className: 'bg-emerald-500 text-white', icon: 'sensors' }
-                  : analysisStatuses[item.analysis_status] || analysisStatuses.not_required;
 
                 return (
                   <tr key={item.id} className="hover:bg-surface-container-low transition-colors">
@@ -238,16 +226,8 @@ const History = () => {
                       </div>
                     </td>
 
-                    {/* Status */}
-                    <td className="p-space-md border-r-[2px] border-pure-black">
-                      <span className={`px-2.5 py-1 text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1.5 ${statusInfo.className}`}>
-                        <span className={`material-symbols-outlined text-[16px] ${isProcessing ? 'animate-spin' : ''}`}>{statusInfo.icon}</span>
-                        {statusInfo.label}
-                      </span>
-                    </td>
-
                     {/* Action */}
-                    <td className="p-space-md text-center">
+                    <td className="p-space-md border-r-[2px] border-pure-black text-center">
                       <button
                         type="button"
                         disabled={actionDisabled}
@@ -260,6 +240,18 @@ const History = () => {
                       >
                         <span className="material-symbols-outlined text-[18px]">{reportUnavailable ? 'block' : 'insights'}</span>
                         {reportUnavailable ? 'Không có report' : 'Xem chi tiết'}
+                      </button>
+                    </td>
+
+                    {/* Delete — UI only, waiting for backend API */}
+                    <td className="w-20 p-space-md text-center">
+                      <button
+                        type="button"
+                        aria-label={`Xóa meeting ${item.name || item.code || ''}`.trim()}
+                        title="Xóa meeting"
+                        className="inline-flex size-10 cursor-pointer items-center justify-center border-[2px] border-pure-black bg-vivid-red text-white shadow-[2px_2px_0px_#000000] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-royal-blue active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+                      >
+                        <span className="material-symbols-outlined text-[22px]" aria-hidden="true">delete</span>
                       </button>
                     </td>
                   </tr>

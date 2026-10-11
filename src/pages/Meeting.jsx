@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CameraGrid from '../components/CameraGrid';
+import LoadingPage from '../components/LoadingPage';
 import MeetingControls from '../components/MeetingControls';
 import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
@@ -591,16 +592,7 @@ const Meeting = () => {
   ];
 
   if (roomLoading && !room) {
-    return (
-      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
-        <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000]">
-          <span className="material-symbols-outlined text-[48px] text-bright-yellow animate-spin">
-            progress_activity
-          </span>
-          <p className="mt-4 font-headline font-bold text-headline-sm">Đang tải phòng học...</p>
-        </div>
-      </main>
-    );
+    return <LoadingPage message="Đang tải phòng học..." />;
   }
 
   if (activeRoomError && !room) {

@@ -7,10 +7,11 @@ import StudentHome from '../pages/StudentHome';
 import Meeting from '../pages/Meeting';
 import EmotionReport from '../pages/EmotionReport';
 import useAuth from '../hooks/useAuth';
+import LoadingPage from '../components/LoadingPage';
 
 const HomeRedirect = () => {
   const { user, isLoading } = useAuth();
-  if (isLoading) return <div className="flex min-h-screen items-center justify-center bg-surface text-on-surface">Đang tải...</div>;
+  if (isLoading) return <LoadingPage message="Đang kiểm tra phiên đăng nhập..." />;
   if (!user) return <Navigate to="/login" replace />;
 
   return user.role === 'teacher'
