@@ -164,7 +164,7 @@ POST /meetings/{meetingId}/recordings
 
 - `teacher_id` → `hostId`.
 - `student_id` → `studentId`.
-- `after_session` → `batch`.
+- `mode` → `analysisMode`, giữ nguyên giá trị `realtime` / `after_session` như backend. `batch` chỉ dùng cho nguồn phân tích/báo cáo (`source`).
 - `ongoing` → `active`.
 - `ended` → `closed`.
 

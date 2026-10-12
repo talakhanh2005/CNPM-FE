@@ -69,7 +69,7 @@ const History = () => {
     const matchesFilter =
       filterMode === 'all' ||
       (filterMode === 'realtime' && item.analysisMode === 'realtime') ||
-      (filterMode === 'batch' && item.analysisMode === 'batch');
+      (filterMode === 'after_session' && item.analysisMode === 'after_session');
 
     return matchesSearch && matchesFilter;
   });
@@ -122,9 +122,9 @@ const History = () => {
           </button>
           <button
             type="button"
-            onClick={() => setFilterMode('batch')}
+            onClick={() => setFilterMode('after_session')}
             className={`px-3 py-1 text-label-sm font-bold border-[2px] border-pure-black transition-all cursor-pointer ${
-              filterMode === 'batch'
+              filterMode === 'after_session'
                 ? 'bg-bright-yellow text-pure-black shadow-[2px_2px_0px_#000000]'
                 : 'bg-surface hover:bg-surface-container text-on-surface'
             }`}
@@ -178,9 +178,9 @@ const History = () => {
             </thead>
             <tbody className="divide-y-[2px] divide-pure-black text-body-sm">
               {filteredHistory.map((item) => {
-                const isBatch = item.analysisMode === 'batch';
+                const isAfterSession = item.analysisMode === 'after_session';
                 const isProcessing = ['pending', 'processing'].includes(item.analysis_status);
-                const reportUnavailable = !isBatch;
+                const reportUnavailable = !isAfterSession;
                 const actionDisabled = isProcessing || reportUnavailable;
 
                 return (
@@ -205,7 +205,7 @@ const History = () => {
 
                     {/* Analysis Mode Badge */}
                     <td className="p-space-md border-r-[2px] border-pure-black">
-                      {isBatch ? (
+                      {isAfterSession ? (
                         <span className="px-2.5 py-1 bg-royal-blue text-white text-label-sm font-bold border border-pure-black shadow-[2px_2px_0px_#000000] inline-flex items-center gap-1">
                           <span className="material-symbols-outlined text-[16px]">psychology</span>
                           AI đánh giá sau

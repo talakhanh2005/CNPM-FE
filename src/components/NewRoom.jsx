@@ -17,8 +17,8 @@ const analysisOptions = [
     description: 'AI theo dõi độ tập trung & cảm xúc trực tiếp trong buổi dạy.',
   },
   {
-    value: 'batch',
-    title: '⏳ AI phân tích sau (Batch)',
+    value: 'after_session',
+    title: '⏳ AI phân tích sau buổi học',
     description: 'Ghi hình bài giảng; AI xử lý và trả báo cáo khi kết thúc.',
   },
 ];
@@ -26,7 +26,7 @@ const analysisOptions = [
 const NewRoom = ({ onClose }) => {
   const navigate = useNavigate();
   const [participantMode, setParticipantMode] = useState('free');
-  const [analysisMode, setAnalysisMode] = useState('batch');
+  const [analysisMode, setAnalysisMode] = useState('after_session');
   const [lobbyMedia, setLobbyMedia] = useState({ camera: false, mic: false, stream: null });
   const [isExiting, setIsExiting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);

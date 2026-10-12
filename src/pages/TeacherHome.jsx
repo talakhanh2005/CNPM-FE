@@ -213,7 +213,7 @@ const TeacherHome = () => {
                       <span className="flex items-center gap-1">
                         <span className="material-symbols-outlined text-[16px]">psychology</span> Chế độ phân tích
                       </span>
-                      <span className="text-on-surface">{item.analysisMode === 'batch' ? 'Đánh giá sau' : 'Realtime'}</span>
+                      <span className="text-on-surface">{item.analysisMode === 'after_session' ? 'Đánh giá sau' : 'Realtime'}</span>
                     </div>
                     <div className="w-full bg-surface-container-high h-3 border-[2px] border-pure-black overflow-hidden">
                       <div className="bg-secondary h-full" style={{ width: item.studentId ? '100%' : '12%' }} />
@@ -229,7 +229,7 @@ const TeacherHome = () => {
                       <span className="material-symbols-outlined text-[18px]">meeting_room</span>
                       Vào phòng
                     </button>
-                    {item.analysisMode === 'batch' && (
+                    {item.analysisMode === 'after_session' && (
                       <button
                         type="button"
                         onClick={() => navigate('/report', { state: { meeting: item } })}

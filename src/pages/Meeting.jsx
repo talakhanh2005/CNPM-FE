@@ -88,7 +88,7 @@ const Meeting = () => {
   }, []);
 
   const handleStartRecord = () => {
-    if (room?.analysisMode === 'batch' && recordingStarted) return;
+    if (room?.analysisMode === 'after_session' && recordingStarted) return;
     try {
       const streamToRecord = remoteParticipants.find((participant) => (
         participant.role === 'student'
@@ -107,7 +107,7 @@ const Meeting = () => {
       recorder.start(1000);
       mediaRecorderRef.current = recorder;
       pendingRecordingBlobRef.current = null;
-      setRecordingNeedsUpload(room?.analysisMode === 'batch');
+      setRecordingNeedsUpload(room?.analysisMode === 'after_session');
       setRecordingError('');
     } catch (error) {
       const message = error.message || 'Không thể bắt đầu ghi hình.';
@@ -118,7 +118,7 @@ const Meeting = () => {
     }
 
     setIsRecording(true);
-    if (room?.analysisMode === 'batch') setRecordingStarted(true);
+    if (room?.analysisMode === 'after_session') setRecordingStarted(true);
     setRecordingSeconds(0);
     clearInterval(recordTimerRef.current);
     recordTimerRef.current = setInterval(() => {
@@ -127,7 +127,7 @@ const Meeting = () => {
   };
 
   const handleStopRecord = async ({ finalizeForClose = false } = {}) => {
-    if (room?.analysisMode === 'batch' && !finalizeForClose) return false;
+    if (room?.analysisMode === 'after_session' && !finalizeForClose) return false;
     const recorder = mediaRecorderRef.current;
     clearInterval(recordTimerRef.current);
     setRecordingBusy(true);
@@ -238,7 +238,7 @@ const Meeting = () => {
   }, []);
 
   useEffect(() => {
-    if (room?.analysisMode !== 'batch' || (!isRecording && !recordingNeedsUpload && !recordingBusy)) {
+    if (room?.analysisMode !== 'after_session' || (!isRecording && !recordingNeedsUpload && !recordingBusy)) {
       return undefined;
     }
     const warnBeforeExit = (event) => {
@@ -531,7 +531,7 @@ const Meeting = () => {
         await handleStopRecord({ finalizeForClose: true });
       }
       const meetingId = room.id;
-      const hasAfterSessionReport = room.analysisMode === 'batch';
+      const hasAfterSessionReport = room.analysisMode === 'after_session';
       await closeRoom(meetingId);
       close();
       navigate(
@@ -641,7 +641,7 @@ const Meeting = () => {
           <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
             <span>
-              {room?.analysisMode === 'batch'
+              {room?.analysisMode === 'after_session'
                 ? 'Chế độ: AI đánh giá sau'
                 : 'AI Cảm xúc: Realtime'}
             </span>
@@ -773,10 +773,10 @@ const Meeting = () => {
         leaving={leaving}
         isTeacher={isTeacher}
         isRecording={isRecording}
-        recordingLocked={room?.analysisMode === 'batch' && recordingStarted}
+        recordingLocked={room?.analysisMode === 'after_session' && recordingStarted}
         recordingNeedsUpload={recordingNeedsUpload}
         recordingBusy={recordingBusy}
-        recordingForAnalysis={room?.analysisMode === 'batch'}
+        recordingForAnalysis={room?.analysisMode === 'after_session'}
         emotionPanelEnabled={emotionViewEnabled}
         onRecordToggle={isRecording ? () => handleStopRecord() : handleStartRecord}
       />

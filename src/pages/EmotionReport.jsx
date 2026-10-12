@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../layouts/DashboardLayout';
+import ReportChatBox from '../components/ReportChatBox';
 import { getMeetingHistory, getRoom } from '../api/meetingApi';
 import { getMeetingReport } from '../api/reportApi';
 import { getApiErrorMessage } from '../api/axiosClient';
@@ -30,7 +31,7 @@ const selectTimelinePoints = (timeline = [], maxPoints = 12) => {
 const EmotionReport = () => {
   const location = useLocation();
   const navigationMeeting = location.state?.meeting;
-  const initialMeeting = navigationMeeting?.analysisMode === 'batch' ? navigationMeeting : null;
+  const initialMeeting = navigationMeeting?.analysisMode === 'after_session' ? navigationMeeting : null;
   const requestedMeetingId = new URLSearchParams(location.search).get('meetingId') || '';
   const [meetings, setMeetings] = useState(() => initialMeeting ? [initialMeeting] : []);
   const [selectedId, setSelectedId] = useState(initialMeeting?.id || requestedMeetingId);
@@ -40,6 +41,7 @@ const EmotionReport = () => {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [refreshTick, setRefreshTick] = useState(0);
+  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -61,7 +63,7 @@ const EmotionReport = () => {
     const loadReport = async () => {
       try {
         const nextMeeting = await getRoom(selectedId);
-        if (nextMeeting.analysisMode !== 'batch') {
+        if (nextMeeting.analysisMode !== 'after_session') {
           throw new Error('Meeting realtime không có báo cáo sau buổi học.');
         }
         const nextReport = await getMeetingReport(selectedId, {
@@ -166,7 +168,7 @@ const EmotionReport = () => {
           </div>
 
           <div className="flex items-center gap-space-sm flex-wrap">
-            <select value={selectedId} onChange={(event) => { setLoading(true); setError(''); setSelectedId(event.target.value); }} className="max-w-56 px-3 py-2 bg-surface border-[3px] border-pure-black font-mono font-bold shadow-[3px_3px_0px_#000000]">
+            <select value={selectedId} onChange={(event) => { setLoading(true); setError(''); setChatOpen(false); setSelectedId(event.target.value); }} className="max-w-56 px-3 py-2 bg-surface border-[3px] border-pure-black font-mono font-bold shadow-[3px_3px_0px_#000000]">
               {!meetings.length && <option value="">Chưa có meeting</option>}
               {meetings.map((item) => <option key={item.id} value={item.id}>#{item.code} • {formatDate(item.createdAt)}</option>)}
             </select>
@@ -228,6 +230,12 @@ const EmotionReport = () => {
           </>
         )}
       </div>
+      <ReportChatBox
+        meetingId={selectedId}
+        isOpen={chatOpen}
+        onOpen={() => setChatOpen(true)}
+        onClose={() => setChatOpen(false)}
+      />
     </DashboardLayout>
   );
 };

@@ -11,7 +11,7 @@ const normalizeParticipant = (participant) => ({
 
 export const normalizeMeeting = (meeting) => {
   if (!meeting) return null;
-  const analysisMode = meeting.mode === 'after_session' ? 'batch' : 'realtime';
+  const analysisMode = meeting.mode === 'after_session' ? 'after_session' : 'realtime';
   const status = meeting.status === 'ongoing'
     ? 'active'
     : meeting.status === 'ended'
@@ -34,7 +34,7 @@ export const normalizeMeeting = (meeting) => {
 
 export const createRoom = ({ analysisMode }) => dataOf(axiosClient.post('/meetings', {
   status: 'ongoing',
-  mode: analysisMode === 'batch' ? 'after_session' : 'realtime',
+  mode: analysisMode === 'after_session' ? 'after_session' : 'realtime',
 })).then(normalizeMeeting);
 
 export const getRoom = (meetingId) => (
