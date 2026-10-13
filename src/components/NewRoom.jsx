@@ -42,6 +42,7 @@ const NewRoom = ({ onClose }) => {
       const room = await createRoom({
         status: 'ongoing',
         mode: analysisMode === 'batch' ? 'after_session' : 'realtime',
+        participant_mode: participantMode,
       });
       const mediaSessionId = retainMediaStream(lobbyMedia.stream);
       navigate(`/meeting/${room.id}`, {

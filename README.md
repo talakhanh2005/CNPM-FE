@@ -2,30 +2,24 @@
 
 ## Backend Integration Status
 
-The frontend is connected to the backend through `src/api/axiosClient.js`, but
-the current frontend implementation is not yet compatible with the live BE
-contract. The UI is partly built around mock data and a mock realtime socket.
+FE gọi backend gộp (CNPM-BE nhánh `feat/merge-a-b`, bản 2.0.0) qua
+`src/api/axiosClient.js`. Vite proxy `/api` và `/ws` tới `http://localhost:8000`
+và bỏ tiền tố `/api`. Backend phải có `http://localhost:5173` trong
+`CORS_ORIGINS` (WebSocket kiểm tra Origin). Contract đầy đủ: `docs/API.md` của backend.
 
-### Compatibility Summary
+| Phần | Trạng thái |
+| --- | --- |
+| Đăng ký/đăng nhập | Email + `full_name`; lưu `access_token`/`refresh_token`. Gặp 401 thì tự gọi `/auth/refresh` một lần rồi gửi lại request. |
+| Phòng học | `/meetings` (tạo, join bằng mã, leave, end, lịch sử). Một giáo viên, nhiều học viên. Gửi `mode` và `participant_mode` khi tạo phòng. |
+| Thoát trang | `pagehide` gọi `/meetings/{id}/disconnect`; mở lại phòng thì backend tự join lại, nên refresh không làm mất chỗ. |
+| Realtime | WebSocket `/ws/meetings/{id}` với `AUTH` + JWT; học viên gửi `FRAME` (`frame_base64`). |
+| Ghi hình, báo cáo | `POST /meetings/{id}/recordings` (raw video), `/recordings/{id}/status`, `/meetings/{id}/report`. |
+| Chưa có giao diện | Tài liệu chia sẻ, hồ sơ, quản trị user, media: đã có hàm trong `src/api/documentApi.js`, `src/api/userApi.js`, `src/api/meetingApi.js`. |
+| Mock (MSW) | `src/mocks/` vẫn theo contract cũ (`/api/rooms`), chỉ chạy khi `VITE_USE_MOCKS=true`. |
 
-| Area | Status | Finding |
-| --- | --- | --- |
-| API base URL | Partial | Axios uses `/api`; Vite must proxy this to `http://localhost:8000`. |
-| Registration | Not compatible | FE sends `username`; BE requires `email`, `full_name`, `password`, and `role`. |
-| Login | Not compatible | FE sends `username` and expects `token`; BE requires `email` and returns `access_token`. |
-| Session token | Not compatible | FE stores `response.data.token`; BE returns `response.data.access_token`. |
-| Create room | Not compatible | FE calls `POST /rooms`; BE exposes `POST /meetings`. |
-| Load room | Not compatible | FE calls `/rooms/{id}`; BE exposes `/meetings/{meeting_id}`. |
-| Join room | Not compatible | FE calls `POST /rooms/join`; BE exposes `POST /meetings/join` or `/meetings/{id}/join`. |
-| Leave room | Not compatible | FE calls `/rooms/{id}/leave`; BE exposes `/meetings/{meeting_id}/leave`. |
-| Meeting history | Not compatible | FE calls `/meetings/history`; BE uses `GET /meetings`. |
-| Recording | Not compatible | FE posts JSON to `/recording`; BE expects video bytes at `/recordings` and creates analysis jobs. |
-| Realtime socket | Not compatible | FE uses `MockRealtimeSocket`, lowercase `auth`, and `userId`; BE requires a real WebSocket, `AUTH`, and JWT token. |
-| Emotion frames | Missing | FE does not capture a video frame or send `frame_base64` to the BE. |
-| Emotion reports | Missing | `src/api/reportApi.js` is empty; report page has no live report API integration. |
-
-The backend routes and payloads are authoritative. The frontend should be
-updated before it is used against the live services.
+WebSocket dùng access token lúc kết nối. Token hết hạn sau `ACCESS_MINUTES`
+(mặc định 15 phút) thì backend đóng socket với `TOKEN_EXPIRED`; FE hiện chưa tự
+kết nối lại, nên buổi học dài cần tăng `ACCESS_MINUTES` ở backend hoặc bổ sung reconnect.
 
 ## Cấu trúc project
 

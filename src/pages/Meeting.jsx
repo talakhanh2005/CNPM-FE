@@ -493,7 +493,7 @@ const Meeting = () => {
           <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
             <span>
-              {room?.analysisMode === 'batch'
+              {room?.mode === 'after_session'
                 ? 'Chế độ: AI đánh giá sau'
                 : 'AI Cảm xúc: Realtime'}
             </span>

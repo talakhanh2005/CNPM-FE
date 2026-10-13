@@ -242,11 +242,11 @@ const TeacherHome = () => {
 
                   <div className="flex flex-col gap-space-xs">
                     <h3 className="text-headline-sm font-headline font-bold text-on-surface">
-                       {item.title || `Phòng ${item.code}`}
+                       {item.name || item.title || `Phòng ${item.code}`}
                     </h3>
                     <p className="text-body-sm text-on-surface-variant flex items-center gap-2">
                       <span className="material-symbols-outlined text-[18px]">group</span>
-                       {item.participants?.length || item.studentsCount || 0} học sinh tham gia
+                       {item.participant_count ?? item.participants?.length ?? item.studentsCount ?? 0} học sinh tham gia
                     </p>
                   </div>
 

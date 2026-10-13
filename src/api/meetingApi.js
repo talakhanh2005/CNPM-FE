@@ -27,7 +27,18 @@ export const getEmotionLogs = (meetingId, params) => dataOf(axiosClient.get(`/me
 export const getRecordingStatus = (recordingId) => dataOf(axiosClient.get(`/recordings/${recordingId}/status`));
 export const analyzeRecording = (recordingId) => dataOf(axiosClient.post(`/recordings/${recordingId}/analyze`));
 
-export const disconnectRoomOnPageExit = (roomId) => fetch(`${apiBaseUrl}/meetings/${roomId}/leave`, {
+// Room features merged from BE A.
+// params: { page, size, q, status, recording_status, from_date, to_date }; without page the data is an array.
+export const getFilteredHistory = (params) => dataOf(axiosClient.get('/meetings/history', { params }));
+export const updateRoom = (roomId, changes) => dataOf(axiosClient.put(`/meetings/${roomId}`, changes));
+export const deleteRoom = (roomId) => dataOf(axiosClient.delete(`/meetings/${roomId}`));
+export const startRoom = (roomId) => dataOf(axiosClient.post(`/meetings/${roomId}/start`));
+export const saveRecordingDuration = (roomId, durationSeconds) => dataOf(
+  axiosClient.post(`/meetings/${roomId}/recording`, { duration_seconds: durationSeconds }),
+);
+
+// Page exit marks the member "disconnected" (not "left"), so a refresh can rejoin the room.
+export const disconnectRoomOnPageExit = (roomId) => fetch(`${apiBaseUrl}/meetings/${roomId}/disconnect`, {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
