@@ -34,7 +34,7 @@ const RecordingStatus = ({
       {needsUpload && (
         <div className="space-y-2">
           <p className="text-label-sm text-on-surface-variant">
-            Bản ghi vẫn được giữ tạm trong tab này. Phòng chỉ có thể đóng sau khi upload thành công.
+            Các bản ghi chưa tải lên vẫn được giữ tạm trong tab này để thử lại hoặc tải về máy.
           </p>
           <div className="flex gap-2 pt-1">
             <button type="button" disabled={busy} onClick={onRetryUpload} className="flex-1 px-2 py-1.5 border-[2px] border-pure-black bg-bright-yellow font-bold text-label-sm disabled:opacity-50">Thử upload lại</button>

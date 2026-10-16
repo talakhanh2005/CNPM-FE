@@ -82,8 +82,8 @@ const MeetingControls = ({
             aria-label={recordingLocked
               ? isRecording
                 ? 'Đang ghi hình đến khi giáo viên đóng phòng'
-                : recordingNeedsUpload ? 'Bản ghi đang chờ upload' : 'Bản ghi đã upload'
-              : isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình và lưu về máy'}
+                : recordingNeedsUpload ? 'Các bản ghi đang chờ upload' : 'Các bản ghi đã upload'
+              : isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình'}
             className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer disabled:opacity-50 ${
               isRecording
                 ? 'bg-vivid-red text-white animate-pulse'
@@ -99,10 +99,10 @@ const MeetingControls = ({
               {recordingBusy
                 ? recordingForAnalysis ? 'Đang tải...' : 'Đang lưu...'
                 : recordingLocked
-                  ? isRecording ? 'Đang ghi đến khi đóng phòng' : recordingNeedsUpload ? 'Chờ upload bản ghi' : 'Bản ghi đã upload'
+                  ? isRecording ? 'Đang ghi đến khi đóng phòng' : recordingNeedsUpload ? 'Chờ upload các bản ghi' : 'Các bản ghi đã upload'
                   : isRecording
                   ? 'Dừng Ghi hình'
-                  : recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình về máy'}
+                  : recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình'}
             </span>
           </button>
         )}

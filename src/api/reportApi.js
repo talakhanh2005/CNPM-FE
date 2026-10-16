@@ -1,9 +1,10 @@
 import axiosClient from './axiosClient';
+import { getMockMeetingReport } from '../mocks/meetingReports';
 
 const dataOf = (request) => request.then((response) => response.data);
 
-export const getMeetingReport = (meetingId, params = {}) => (
-  dataOf(axiosClient.get(`/meetings/${meetingId}/report`, { params }))
+export const getMeetingReport = (meetingId, params = {}, context = {}) => (
+  Promise.resolve(getMockMeetingReport(meetingId, params, context))
 );
 
 export const getRecordingAnalysis = (recordingId, params = {}) => (

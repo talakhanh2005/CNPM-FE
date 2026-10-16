@@ -23,6 +23,7 @@ export const normalizeMeeting = (meeting) => {
     name: meeting.name || `Phòng học #${meeting.code}`,
     hostId: meeting.teacher_id,
     studentId: meeting.student_id,
+    studentIds: meeting.student_ids || (meeting.student_id ? [meeting.student_id] : []),
     analysisMode,
     emotionRecognition: analysisMode === 'realtime',
     status,
@@ -70,10 +71,11 @@ export const getMeetingHistory = (params = {}) => dataOf(axiosClient.get('/meeti
     })),
   }));
 
-export const uploadMeetingRecording = (meetingId, videoBlob) => dataOf(axiosClient.post(
+export const uploadMeetingRecording = (meetingId, studentId, videoBlob) => dataOf(axiosClient.post(
   `/meetings/${meetingId}/recordings`,
   videoBlob,
   {
+    params: { student_id: studentId },
     headers: {
       'Content-Type': videoBlob.type || 'video/webm',
     },
