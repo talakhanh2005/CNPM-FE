@@ -1,12 +1,25 @@
 import { useEffect, useRef } from 'react';
 
+const STATUS_LABELS = {
+  no_face: 'Không thấy khuôn mặt',
+  ai_error: 'AI gặp lỗi',
+  error: 'Mất kết nối AI',
+  stopped: 'Không phân tích',
+};
+
+// Overlay text: a real prediction wins; otherwise say why there is none (never invent one).
+const emotionLabel = (participant) => {
+  if (participant.emotion && participant.emotion !== 'fail_detection') {
+    return `${participant.emotion} ${Math.round((participant.confidence || 0) * 100)}%`;
+  }
+  return STATUS_LABELS[participant.emotionStatus] || 'Đang chờ AI';
+};
+
 const ParticipantTile = ({ participant, speakerOn, speakerDeviceId }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
-  const emotion = participant.emotion
-    ? `${participant.emotion} ${Math.round((participant.confidence || 0) * 100)}%`
-    : 'Đang chờ AI';
+  const emotion = emotionLabel(participant);
 
   useEffect(() => {
     const video = videoRef.current;

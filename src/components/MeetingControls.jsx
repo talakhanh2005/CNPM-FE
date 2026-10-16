@@ -5,8 +5,8 @@ const MeetingControls = ({
   onDialogToggle,
   onLeave,
   leaving = false,
-  isTeacher = false,
   isRecording = false,
+  canRecord = false,
   onRecordToggle,
 }) => {
   return (
@@ -68,8 +68,8 @@ const MeetingControls = ({
           <span>{mediaState.speaker ? 'Loa: Bật' : 'Loa: Tắt'}</span>
         </button>
 
-        {/* Teacher Record Button */}
-        {isTeacher && (
+        {/* Record button: teacher in an after_session meeting only (README 1.2) */}
+        {canRecord && (
           <button
             type="button"
             onClick={onRecordToggle}

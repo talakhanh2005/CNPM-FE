@@ -277,6 +277,8 @@ const useWebRTC = ({ user, localStream, mediaState, send, iceServers = fallbackI
         emotion: event.emotion,
         confidence: event.confidence,
         faceDetected: event.face_detected,
+        emotionStatus: event.emotion === 'fail_detection' ? event.failure_reason || 'ai_error' : 'ok',
+        modelVersion: event.model_version,
       });
       return;
     }

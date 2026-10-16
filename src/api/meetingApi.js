@@ -6,6 +6,9 @@ export const createRoom = (settings) => dataOf(axiosClient.post('/meetings', set
 
 export const getRoom = (roomId) => dataOf(axiosClient.get(`/meetings/${roomId}`));
 
+// Checks a room code without joining it (404 unknown, 409 not ongoing, 403 not allowed).
+export const lookupRoomCode = (code) => dataOf(axiosClient.get('/meetings/lookup', { params: { code } }));
+
 export const joinRoom = (code) => dataOf(axiosClient.post('/meetings/join', { code }));
 
 export const leaveRoom = (roomId) => dataOf(axiosClient.post(`/meetings/${roomId}/leave`));
@@ -21,7 +24,10 @@ export const saveMeetingRecording = (roomId, recordingData, contentType = 'video
 
 export const joinMeeting = (meetingId) => dataOf(axiosClient.post(`/meetings/${meetingId}/join`));
 export const getIceConfig = (meetingId) => dataOf(axiosClient.get(`/meetings/${meetingId}/ice-config`));
-export const sendFrame = (meetingId, payload) => dataOf(axiosClient.post(`/meetings/${meetingId}/frames`, payload));
+// Contract v1 section 5.1: realtime meetings only; the frame lives in RAM on the server.
+export const inferEmotion = (meetingId, payload) => dataOf(
+  axiosClient.post(`/meetings/${meetingId}/emotions/infer`, payload),
+);
 export const getMeetingReport = (meetingId, params) => dataOf(axiosClient.get(`/meetings/${meetingId}/report`, { params }));
 export const getEmotionLogs = (meetingId, params) => dataOf(axiosClient.get(`/meetings/${meetingId}/emotion-logs`, { params }));
 export const getRecordingStatus = (recordingId) => dataOf(axiosClient.get(`/recordings/${recordingId}/status`));

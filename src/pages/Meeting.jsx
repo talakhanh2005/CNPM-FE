@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CameraGrid from '../components/CameraGrid';
 import MeetingControls from '../components/MeetingControls';
@@ -72,6 +72,7 @@ const Meeting = () => {
   const iceConfigReady = Boolean(room?.id && iceConfig.meetingId === room.id);
 
   const handleStartRecord = () => {
+    if (room?.mode !== 'after_session') return; // realtime meetings never record
     try {
       let streamToRecord = streamRef.current;
       if (!streamToRecord || streamToRecord.getTracks().length === 0) {
@@ -267,6 +268,12 @@ const Meeting = () => {
     return () => { active = false; };
   }, [room?.id]);
 
+  const [localEmotion, setLocalEmotion] = useState({ status: 'idle' });
+  const handleEmotionResult = useCallback((result) => {
+    if (result.status === 'busy') return; // keep showing the last result
+    setLocalEmotion(result);
+  }, []);
+
   const { remoteParticipants, handleEvent } = useWebRTC({
     user,
     localStream,
@@ -288,12 +295,13 @@ const Meeting = () => {
     onStatus: setConnectionStatus,
   });
 
+  // Realtime inference only; after_session meetings never send frames (the BE would answer 409).
   useEmotionFrames({
     stream: localStream,
-    enabled: mediaState.camera && connectionStatus === 'connected',
+    enabled: mediaState.camera && connectionStatus === 'connected' && room?.mode === 'realtime',
     isStudent: user?.role === 'student',
     meetingId: room?.id,
-    send,
+    onResult: handleEmotionResult,
   });
 
   useEffect(() => {
@@ -422,6 +430,15 @@ const Meeting = () => {
     }
   };
 
+  // Live numbers come from the students' latest AI predictions only; nothing is estimated.
+  const hasPrediction = (participant) => Boolean(participant.emotion)
+    && participant.emotion !== 'fail_detection';
+  const liveStudents = remoteParticipants.filter((participant) => participant.role === 'student');
+  const emotionCounts = liveStudents.filter(hasPrediction).reduce((counts, participant) => (
+    { ...counts, [participant.emotion]: (counts[participant.emotion] || 0) + 1 }
+  ), {});
+  const topEmotion = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—';
+
   const participants = [
     ...remoteParticipants,
     {
@@ -431,6 +448,10 @@ const Meeting = () => {
       isLocal: true,
       stream: localStream,
       cameraOn: mediaState.camera,
+      emotion: localEmotion.status === 'ok' ? localEmotion.emotion : undefined,
+      confidence: localEmotion.confidence,
+      emotionStatus: localEmotion.status,
+      modelVersion: localEmotion.model_version,
     },
   ];
 
@@ -532,12 +553,14 @@ const Meeting = () => {
               </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
-              <span className="text-on-surface-variant font-mono">Tập trung TB:</span>
-              <span className="font-bold text-emerald-600">91%</span>
+              <span className="text-on-surface-variant font-mono">Đã nhận diện:</span>
+              <span className="font-bold text-emerald-600">
+                {liveStudents.filter(hasPrediction).length}/{liveStudents.length}
+              </span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
-              <span className="text-on-surface-variant font-mono">Cần hỗ trợ:</span>
-              <span className="font-bold text-tertiary">0 em</span>
+              <span className="text-on-surface-variant font-mono">Cảm xúc nhiều nhất:</span>
+              <span className="font-bold text-tertiary">{topEmotion}</span>
             </div>
             <div className="flex items-center justify-between p-2 bg-surface-container-lowest border border-pure-black">
               <span className="text-on-surface-variant font-mono">AI Realtime:</span>
@@ -600,8 +623,8 @@ const Meeting = () => {
         onDialogToggle={toggleDialog}
         onLeave={handleLeave}
         leaving={leaving}
-        isTeacher={isTeacher}
         isRecording={isRecording}
+        canRecord={isTeacher && room?.mode === 'after_session'}
         onRecordToggle={isRecording ? handleStopRecord : handleStartRecord}
       />
     </main>
