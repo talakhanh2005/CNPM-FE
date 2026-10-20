@@ -87,7 +87,7 @@ const MeetingControls = ({
             className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer disabled:opacity-50 ${
               isRecording
                 ? 'bg-vivid-red text-white animate-pulse'
-                : 'bg-bright-yellow text-pure-black hover:bg-yellow-400'
+                : 'bg-role-accent text-role-contrast hover:opacity-90'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">
@@ -117,7 +117,7 @@ const MeetingControls = ({
           aria-label="Trò chuyện"
           className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
             activeDialog === 'chat'
-              ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
+              ? 'bg-role-accent text-role-contrast translate-x-0.5 translate-y-0.5 shadow-none'
               : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
           }`}
         >
@@ -131,7 +131,7 @@ const MeetingControls = ({
           aria-label="Tài liệu học tập"
           className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
             activeDialog === 'materials'
-              ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
+              ? 'bg-role-accent text-role-contrast translate-x-0.5 translate-y-0.5 shadow-none'
               : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
           }`}
         >
@@ -147,7 +147,7 @@ const MeetingControls = ({
             aria-label="Phân tích cảm xúc"
             className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer ${
               activeDialog === 'emotion'
-                ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
+                ? 'bg-role-accent text-role-contrast translate-x-0.5 translate-y-0.5 shadow-none'
                 : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
             }`}
           >
@@ -165,7 +165,7 @@ const MeetingControls = ({
           aria-label="Cài đặt"
           className={`p-2 sm:p-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] transition-all cursor-pointer ${
             activeDialog === 'settings'
-              ? 'bg-bright-yellow text-on-surface translate-x-0.5 translate-y-0.5 shadow-none'
+              ? 'bg-role-accent text-role-contrast translate-x-0.5 translate-y-0.5 shadow-none'
               : 'bg-surface-container hover:bg-surface-container-high text-on-surface'
           }`}
         >

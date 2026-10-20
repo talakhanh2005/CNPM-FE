@@ -59,8 +59,6 @@ const EmotionReport = () => {
           source: 'batch',
           offset: 0,
           limit: 2000,
-        }, {
-          studentIds: nextMeeting.studentIds,
         });
         if (!active) return;
         setMeeting(nextMeeting);
@@ -121,7 +119,7 @@ const EmotionReport = () => {
   };
 
   return (
-    <main className="min-h-screen bg-surface font-body text-on-surface pb-24">
+    <main className="role-theme-teacher min-h-screen bg-surface font-body text-on-surface pb-24">
       <header className="sticky top-0 z-30 border-b-[3px] border-pure-black bg-off-white shadow-[0_4px_0px_#000000]">
         <div className="mx-auto flex max-w-[1600px] flex-col gap-3 px-gutter py-3 lg:flex-row lg:items-center lg:justify-between lg:px-margin">
           <div className="flex items-center gap-3 min-w-0">
@@ -135,7 +133,7 @@ const EmotionReport = () => {
             </button>
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <span className="px-2 py-0.5 bg-royal-blue text-white text-[11px] font-bold uppercase border border-pure-black">Báo cáo sau buổi học</span>
+                <span className="px-2 py-0.5 bg-role-accent text-role-contrast text-[11px] font-bold uppercase border border-pure-black">Báo cáo sau buổi học</span>
                 <span className="font-mono text-[11px] font-bold text-on-surface-variant">#{meeting?.code || '--'}</span>
               </div>
               <h1 className="font-headline text-headline-md font-bold truncate">{meeting?.name || 'Báo cáo cảm xúc'}</h1>
@@ -158,7 +156,7 @@ const EmotionReport = () => {
               <span className="material-symbols-outlined text-[19px]">share</span>
               Chia sẻ
             </button>
-            <button type="button" disabled={!report} onClick={handleExport} className="h-11 px-3 bg-bright-yellow border-[3px] border-pure-black font-bold shadow-[3px_3px_0px_#000000] flex items-center gap-1.5 disabled:opacity-50">
+            <button type="button" disabled={!report} onClick={handleExport} className="h-11 px-3 bg-role-accent text-role-contrast border-[3px] border-pure-black font-bold shadow-[3px_3px_0px_#000000] flex items-center gap-1.5 disabled:opacity-50">
               <span className="material-symbols-outlined text-[19px]">download</span>
               Xuất CSV
             </button>
@@ -183,7 +181,7 @@ const EmotionReport = () => {
       </div>
 
       <ReportChatBox
-        meetingId={selectedId}
+        meetingCode={meeting?.code || ''}
         isOpen={chatOpen}
         onOpen={() => setChatOpen(true)}
         onClose={() => setChatOpen(false)}

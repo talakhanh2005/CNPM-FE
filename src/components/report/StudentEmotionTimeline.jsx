@@ -30,6 +30,12 @@ const shortId = (value) => {
 const StudentEmotionTimeline = ({ meeting, report }) => {
   const timeline = useMemo(() => report?.timeline || [], [report?.timeline]);
   const rows = useMemo(() => {
+    const participantNames = new Map(
+      (meeting?.participants || []).map((participant) => [
+        participant.id || participant.user_id,
+        participant.fullName || participant.full_name || participant.name || '',
+      ]),
+    );
     const ids = new Set([
       ...(meeting?.studentIds || []),
       ...(meeting?.studentId ? [meeting.studentId] : []),
@@ -42,7 +48,12 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
         .filter((point) => (point.student_id || 'legacy-unknown') === studentId)
         .filter((point) => Number.isFinite(Number(point.timestamp)))
         .sort((left, right) => Number(left.timestamp) - Number(right.timestamp));
-      return { studentId, points, visiblePoints: samplePoints(points) };
+      return {
+        studentId,
+        studentName: participantNames.get(studentId) || '',
+        points,
+        visiblePoints: samplePoints(points),
+      };
     });
   }, [meeting, timeline]);
 
@@ -109,8 +120,10 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
             {rows.map((row, index) => (
               <div key={row.studentId} className="flex border-b border-pure-black last:border-b-0">
                 <div className={`sticky left-0 z-20 w-52 shrink-0 border-r-[2px] border-pure-black px-3 py-3 ${index % 2 ? 'bg-surface-container-low' : 'bg-surface-bright'}`}>
-                  <div className="font-bold">Học sinh {index + 1}</div>
-                  <div className="font-mono text-[11px] text-on-surface-variant" title={row.studentId}>{shortId(row.studentId)}</div>
+                  <div className="font-bold">{row.studentName || `Học sinh ${index + 1}`}</div>
+                  {!row.studentName && (
+                    <div className="font-mono text-[11px] text-on-surface-variant" title={row.studentId}>{shortId(row.studentId)}</div>
+                  )}
                   <div className="text-[11px] font-bold mt-1">{row.points.length} điểm</div>
                 </div>
                 <div className={`relative h-[74px] shrink-0 ${index % 2 ? 'bg-surface-container-low' : 'bg-surface-bright'}`} style={{ width: chartWidth }}>
@@ -122,7 +135,7 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
                     const meta = getEmotionMeta(point.emotion);
                     const position = Math.min(100, (Number(point.timestamp) / maxTimestamp) * 100);
                     const title = [
-                      `Học sinh: ${row.studentId}`,
+                      `Học sinh: ${row.studentName || row.studentId}`,
                       `Thời gian: ${formatTimelineTime(point.timestamp)}`,
                       `Cảm xúc: ${meta.label}`,
                       `Độ tin cậy: ${percentOf(point.confidence).toFixed(1)}%`,

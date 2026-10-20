@@ -170,14 +170,14 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
         <div className="flex items-center gap-2.5">
           <div className="w-3.5 h-3.5 bg-vivid-red border-[2px] border-pure-black" />
           <div className="w-3.5 h-3.5 rounded-full bg-royal-blue border-[2px] border-pure-black" />
-          <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[13px] border-b-bright-yellow" />
+          <div className="w-0 h-0 border-l-[7px] border-l-transparent border-r-[7px] border-r-transparent border-b-[13px] border-b-role-accent" />
           <span className="font-headline font-bold text-label-lg tracking-tight text-on-surface uppercase ml-1 truncate">
             {roomTitle || 'Phòng Chờ Trực Tuyến // Lớp Học AI'}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 bg-bright-yellow border-[2px] border-pure-black text-label-xs font-bold uppercase shadow-[1px_1px_0px_#000000]">
+          <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 bg-role-accent text-role-contrast border-[2px] border-pure-black text-label-xs font-bold uppercase shadow-[1px_1px_0px_#000000]">
             Trạng thái: Đã kết nối
           </span>
           {onClose && (
@@ -213,7 +213,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   onClick={() => setIsCamOn((v) => !v)}
                   className={`px-2.5 py-1 border-[2px] border-pure-black text-label-xs uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer flex items-center gap-1 ${
                     isCamOn
-                      ? 'bg-surface-container hover:bg-bright-yellow text-on-surface'
+                      ? 'bg-surface-container hover:bg-role-soft text-on-surface'
                       : 'bg-vivid-red text-on-error'
                   }`}
                 >
@@ -227,7 +227,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   onClick={() => setIsMicOn((v) => !v)}
                   className={`px-2.5 py-1 border-[2px] border-pure-black text-label-xs uppercase font-bold transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer flex items-center gap-1 ${
                     isMicOn
-                      ? 'bg-surface-container hover:bg-bright-yellow text-on-surface'
+                      ? 'bg-surface-container hover:bg-role-soft text-on-surface'
                       : 'bg-vivid-red text-on-error'
                   }`}
                 >
@@ -240,7 +240,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   type="button"
                   onClick={() => setShowDeviceSettings((v) => !v)}
                   className={`p-1 border-[2px] border-pure-black transition-all shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none cursor-pointer ${
-                    showDeviceSettings ? 'bg-bright-yellow text-pure-black' : 'bg-surface hover:bg-surface-container'
+                    showDeviceSettings ? 'bg-role-accent text-role-contrast' : 'bg-surface hover:bg-surface-container'
                   }`}
                   title="Cài đặt thiết bị"
                 >
@@ -261,8 +261,8 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
 
               {!isCamOn && (
                 <div className="flex flex-col items-center gap-1.5 text-center p-4 bg-surface-container-low border-[2px] border-pure-black max-w-xs">
-                  <div className="w-10 h-10 bg-bright-yellow border-[2px] border-pure-black flex items-center justify-center shadow-[2px_2px_0px_#000000]">
-                    <span className="material-symbols-outlined text-[24px] text-pure-black">
+                  <div className="w-10 h-10 bg-role-accent border-[2px] border-pure-black flex items-center justify-center shadow-[2px_2px_0px_#000000]">
+                    <span className="material-symbols-outlined text-[24px] text-role-contrast">
                       videocam_off
                     </span>
                   </div>
@@ -279,7 +279,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
               <div className="absolute bottom-2 left-2 bg-pure-black/90 text-on-primary px-2 py-0.5 text-[11px] font-mono border border-pure-black">
                 FPS: 60 | 1080p | 14ms
               </div>
-              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-bright-yellow border-[2px] border-pure-black font-bold text-xs text-pure-black shadow-[1px_1px_0px_#000000] flex items-center gap-1">
+              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-role-accent border-[2px] border-pure-black font-bold text-xs text-role-contrast shadow-[1px_1px_0px_#000000] flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
                 AI Sẵn sàng
               </div>
@@ -287,18 +287,18 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
 
             {/* Audio Visualizer Bar */}
             <div className="mt-2.5 p-2 bg-surface-container-low border-[2px] border-pure-black flex items-center gap-3">
-              <span className={`material-symbols-outlined text-[18px] ${isMicOn ? 'text-royal-blue' : 'text-outline'}`}>
+              <span className={`material-symbols-outlined text-[18px] ${isMicOn ? 'text-role-accent' : 'text-outline'}`}>
                 {isMicOn ? 'mic' : 'mic_off'}
               </span>
               <div className="flex-1 flex items-center gap-1 h-3">
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-3/4 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-1/2 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-5/6 border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-royal-blue animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-1/3 border border-pure-black ${isMicOn ? 'bg-bright-yellow animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-2/3 border border-pure-black ${isMicOn ? 'bg-royal-blue' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-3/4 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-1/2 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-5/6 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-1/3 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
+                <div className={`w-1.5 h-2/3 border border-pure-black ${isMicOn ? 'bg-role-accent' : 'bg-surface-variant'}`} />
               </div>
               <span className="text-label-xs font-mono font-bold">
                 {isMicOn ? '-18dB' : 'Muted'}
@@ -326,7 +326,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   <select
                     value={selectedDevices.camera}
                     onChange={(e) => setSelectedDevices((prev) => ({ ...prev, camera: e.target.value }))}
-                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-role-soft outline-none cursor-pointer truncate"
                   >
                     {devices.cams.map((c) => (
                       <option key={c.value} value={c.value}>{c.label}</option>
@@ -339,7 +339,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   <select
                     value={selectedDevices.mic}
                     onChange={(e) => setSelectedDevices((prev) => ({ ...prev, mic: e.target.value }))}
-                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-role-soft outline-none cursor-pointer truncate"
                   >
                     {devices.mics.map((m) => (
                       <option key={m.value} value={m.value}>{m.label}</option>
@@ -352,7 +352,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                   <select
                     value={selectedDevices.speaker}
                     onChange={(e) => setSelectedDevices((prev) => ({ ...prev, speaker: e.target.value }))}
-                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-bright-yellow outline-none cursor-pointer truncate"
+                    className="p-1.5 bg-surface border-[2px] border-pure-black text-label-xs font-medium focus:bg-role-soft outline-none cursor-pointer truncate"
                   >
                     {devices.speakers.map((s) => (
                       <option key={s.value} value={s.value}>{s.label}</option>
@@ -368,7 +368,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                     setAudioLevel(true);
                     setTimeout(() => setAudioLevel(false), 2000);
                   }}
-                  className="px-2.5 py-1 bg-secondary text-on-secondary border-[2px] border-pure-black text-label-xs uppercase font-bold hover:bg-secondary-container transition-colors cursor-pointer"
+                  className="px-2.5 py-1 bg-role-accent text-role-contrast border-[2px] border-pure-black text-label-xs uppercase font-bold hover:opacity-90 transition-colors cursor-pointer"
                 >
                   {audioLevel ? 'Mic OK!' : 'Thử Micro'}
                 </button>
@@ -382,10 +382,10 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
           {/* Header Card: Room info & Status */}
           <div className="bg-surface-container-lowest border-[3px] border-pure-black shadow-[4px_4px_0px_#000000] p-3.5 flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 bg-royal-blue text-on-secondary text-label-xs uppercase font-bold border-[2px] border-pure-black">
+              <span className="px-2 py-0.5 bg-role-accent text-role-contrast text-label-xs uppercase font-bold border-[2px] border-pure-black">
                 Trực tiếp hôm nay
               </span>
-              <div className="flex items-center gap-1.5 bg-bright-yellow px-2 py-0.5 border-[2px] border-pure-black text-label-xs font-bold">
+              <div className="flex items-center gap-1.5 bg-role-accent text-role-contrast px-2 py-0.5 border-[2px] border-pure-black text-label-xs font-bold">
                 <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>
                   psychology
                 </span>
@@ -395,7 +395,7 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
 
             <div className="flex justify-between items-center pt-1 border-t-[2px] border-pure-black">
               <span className="font-label-xs uppercase text-on-surface-variant font-bold">Mã phòng:</span>
-              <span className="font-label-sm font-mono bg-bright-yellow px-2 py-0.5 border-[2px] border-pure-black font-bold">
+              <span className="font-label-sm font-mono bg-role-accent text-role-contrast px-2 py-0.5 border-[2px] border-pure-black font-bold">
                 {roomCode ? `#${roomCode}` : '#TẠO-MỚI'}
               </span>
             </div>

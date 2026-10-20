@@ -112,13 +112,13 @@ const TeacherHome = () => {
         <div className="flex flex-col w-full p-gutter md:p-margin gap-space-xl pb-24">
           {/* Welcome Banner */}
           <section className="flex flex-col md:flex-row justify-between items-start md:items-center bg-off-white border-[3px] border-pure-black p-space-lg shadow-[6px_6px_0px_#000000] gap-space-md relative overflow-hidden">
-            <div className="absolute -right-6 -bottom-8 opacity-10 pointer-events-none select-none text-royal-blue">
+            <div className="absolute -right-6 -bottom-8 opacity-10 pointer-events-none select-none text-role-accent">
               <span className="material-symbols-outlined text-[200px]">co_present</span>
             </div>
 
             <div className="flex flex-col gap-space-xs z-10">
               <div className="flex items-center gap-space-sm">
-                <span className="px-space-sm py-1 bg-royal-blue text-white text-label-sm font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5">
+                <span className="px-space-sm py-1 bg-role-accent text-role-contrast text-label-sm font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center gap-1.5">
                   <span className="material-symbols-outlined text-[16px]">co_present</span>
                   TRUNG TÂM GIẢNG DẠY
                 </span>
@@ -136,7 +136,7 @@ const TeacherHome = () => {
               <button
                 type="button"
                 onClick={() => setIsCreatingRoom(true)}
-                className="flex-1 md:flex-none px-space-md py-space-sm bg-royal-blue text-white border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-space-sm cursor-pointer"
+                className="flex-1 md:flex-none px-space-md py-space-sm bg-role-accent text-role-contrast border-[3px] border-pure-black font-label-lg font-bold shadow-[4px_4px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1 active:translate-y-1 active:shadow-none transition-all flex items-center justify-center gap-space-sm cursor-pointer"
               >
                 <span className="material-symbols-outlined">add_box</span>
                 Tạo phòng học mới
@@ -166,7 +166,7 @@ const TeacherHome = () => {
           <section className="flex flex-col gap-space-md">
             <div className="flex items-center justify-between">
               <h2 className="text-headline-md font-headline font-bold uppercase tracking-tight flex items-center gap-2">
-                <span className="w-3.5 h-3.5 bg-royal-blue border-[2px] border-pure-black inline-block" />
+                <span className="w-3.5 h-3.5 bg-role-accent border-[2px] border-pure-black inline-block" />
                 Lớp học đang diễn ra
               </h2>
               <span className="text-label-sm bg-surface-container px-3 py-1 border-[2px] border-pure-black font-bold">
@@ -183,13 +183,15 @@ const TeacherHome = () => {
               </div>
             )}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
-              {activeClassrooms.map((item) => (
+              {activeClassrooms.map((item) => {
+                const studentCount = item.studentIds?.length || (item.studentId ? 1 : 0);
+                return (
                 <div
                   key={item.id}
                   className="bg-off-white border-[3px] border-pure-black p-space-lg shadow-[4px_4px_0px_#000000] flex flex-col justify-between gap-space-md"
                 >
                   <div className="flex items-center justify-between">
-                    <span className="px-3 py-1 text-label-sm font-bold border-[2px] border-pure-black bg-bright-yellow text-on-primary-fixed">
+                    <span className="px-3 py-1 text-label-sm font-bold border-[2px] border-pure-black bg-role-accent text-role-contrast">
                       PHÒNG #{item.code}
                     </span>
                     <span className="flex items-center gap-1.5 text-label-sm font-bold text-on-surface bg-surface-container-lowest px-2 py-1 border-[2px] border-pure-black">
@@ -204,7 +206,7 @@ const TeacherHome = () => {
                     </h3>
                     <p className="text-body-sm text-on-surface-variant flex items-center gap-2">
                       <span className="material-symbols-outlined text-[18px]">group</span>
-                      {item.studentId ? 1 : 0} học sinh tham gia
+                      {studentCount} học sinh tham gia
                     </p>
                   </div>
 
@@ -216,7 +218,7 @@ const TeacherHome = () => {
                       <span className="text-on-surface">{item.analysisMode === 'after_session' ? 'Đánh giá sau' : 'Realtime'}</span>
                     </div>
                     <div className="w-full bg-surface-container-high h-3 border-[2px] border-pure-black overflow-hidden">
-                      <div className="bg-secondary h-full" style={{ width: item.studentId ? '100%' : '12%' }} />
+                      <div className="bg-secondary h-full" style={{ width: studentCount ? '100%' : '12%' }} />
                     </div>
                   </div>
 
@@ -224,7 +226,7 @@ const TeacherHome = () => {
                     <button
                       type="button"
                       onClick={() => setJoinRoomCode(item.code)}
-                      className="flex-1 py-2 bg-royal-blue text-on-secondary font-label-md font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      className="flex-1 py-2 bg-role-accent text-role-contrast font-label-md font-bold border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none transition-all flex items-center justify-center gap-1 cursor-pointer"
                     >
                       <span className="material-symbols-outlined text-[18px]">meeting_room</span>
                       Vào phòng
@@ -241,7 +243,8 @@ const TeacherHome = () => {
                     )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 

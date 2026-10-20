@@ -5,6 +5,13 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion 
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
   const emotion = participant.emotion;
+  const roleLabel = participant.isLocal
+    ? 'ME'
+    : participant.role === 'teacher'
+      ? 'GV'
+      : participant.role === 'student'
+        ? 'HS'
+        : '';
 
   useEffect(() => {
     const video = videoRef.current;
@@ -46,8 +53,8 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion 
 
       {/* When camera is off: Bauhaus abstract avatar */}
       {!cameraVisible && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center bg-surface-dim">
-          <div className="flex h-20 w-20 items-center justify-center border-[3px] border-pure-black bg-bright-yellow text-2xl font-headline font-bold text-pure-black shadow-[3px_3px_0px_#000000]">
+        <div className={`absolute inset-0 flex flex-col items-center justify-center bg-surface-dim ${participant.role === 'teacher' ? 'role-theme-teacher' : participant.role === 'student' ? 'role-theme-student' : ''}`}>
+          <div className="flex h-20 w-20 items-center justify-center border-[3px] border-pure-black bg-role-accent text-2xl font-headline font-bold text-role-contrast shadow-[3px_3px_0px_#000000]">
             {participant.initials || participant.name?.[0] || 'U'}
           </div>
           <span className="mt-2 text-label-sm font-bold text-on-surface-variant font-mono">
@@ -82,7 +89,7 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion 
           {participant.name} {participant.isLocal ? '(Bạn)' : ''}
         </span>
         <span className="text-label-sm text-on-surface-variant font-mono">
-          {participant.isLocal ? 'ME' : 'HS'}
+          {roleLabel}
         </span>
       </div>
     </div>

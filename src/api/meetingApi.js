@@ -5,6 +5,7 @@ const dataOf = (request) => request.then((response) => response.data);
 const normalizeParticipant = (participant) => ({
   ...participant,
   id: participant.user_id,
+  fullName: participant.full_name || null,
   joinedAt: participant.joined_at,
   leftAt: participant.left_at,
 });
@@ -52,6 +53,10 @@ export const leaveRoom = (meetingId) => (
 
 export const closeRoom = (meetingId) => (
   dataOf(axiosClient.post(`/meetings/${meetingId}/end`)).then(normalizeMeeting)
+);
+
+export const deleteRoom = (meetingId) => (
+  dataOf(axiosClient.delete(`/meetings/${meetingId}`))
 );
 
 export const startRoom = (meetingId) => (

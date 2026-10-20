@@ -67,7 +67,7 @@ const Register = () => {
 
   return (
     <AuthLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-73px)] w-full bg-surface">
+      <div className={`${role === 'teacher' ? 'role-theme-teacher' : 'role-theme-student'} grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-73px)] w-full bg-surface`}>
         {/* Left Panel: Neo-Bauhaus Artistic Geometric Showcase */}
         <div className="lg:col-span-5 bg-primary-container p-8 lg:p-12 border-b-[3px] lg:border-b-0 lg:border-r-[3px] border-pure-black flex flex-col justify-between relative overflow-hidden">
           {/* Decorative background elements */}
@@ -167,14 +167,14 @@ const Register = () => {
                       className="sr-only"
                     />
                     <div
-                      className={`p-4 border-[3px] border-pure-black transition-all flex flex-col items-center text-center cursor-pointer ${
+                      className={`role-theme-teacher p-4 border-[3px] border-pure-black transition-all flex flex-col items-center text-center cursor-pointer ${
                         role === 'teacher'
-                          ? 'bg-bright-yellow translate-x-1 translate-y-1 shadow-none font-bold'
+                          ? 'bg-role-accent text-role-contrast translate-x-1 translate-y-1 shadow-none font-bold'
                           : 'bg-surface-container-lowest shadow-[4px_4px_0px_#000000] hover:bg-surface-container'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[28px] mb-1 text-pure-black">badge</span>
-                      <span className="text-label-lg text-pure-black">Tôi là Giáo viên</span>
+                      <span className="material-symbols-outlined text-[28px] mb-1">badge</span>
+                      <span className="text-label-lg">Tôi là Giáo viên</span>
                     </div>
                   </label>
 
@@ -193,14 +193,14 @@ const Register = () => {
                       className="sr-only"
                     />
                     <div
-                      className={`p-4 border-[3px] border-pure-black transition-all flex flex-col items-center text-center cursor-pointer ${
+                      className={`role-theme-student p-4 border-[3px] border-pure-black transition-all flex flex-col items-center text-center cursor-pointer ${
                         role === 'student'
-                          ? 'bg-bright-yellow translate-x-1 translate-y-1 shadow-none font-bold'
+                          ? 'bg-role-accent text-role-contrast translate-x-1 translate-y-1 shadow-none font-bold'
                           : 'bg-surface-container-lowest shadow-[4px_4px_0px_#000000] hover:bg-surface-container'
                       }`}
                     >
-                      <span className="material-symbols-outlined text-[28px] mb-1 text-pure-black">person_outline</span>
-                      <span className="text-label-lg text-pure-black">Tôi là Học sinh</span>
+                      <span className="material-symbols-outlined text-[28px] mb-1">person_outline</span>
+                      <span className="text-label-lg">Tôi là Học sinh</span>
                     </div>
                   </label>
                 </div>
@@ -224,7 +224,7 @@ const Register = () => {
                   placeholder="Nhập họ và tên đầy đủ..."
                   aria-invalid={Boolean(fieldErrors.fullName)}
                   aria-describedby={fieldErrors.fullName ? 'register-name-error' : undefined}
-                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.fullName ? 'border-vivid-red' : 'border-pure-black'}`}
+                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-role-soft shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.fullName ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
                 {fieldErrors.fullName && <p id="register-name-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.fullName}</p>}
               </div>
@@ -247,7 +247,7 @@ const Register = () => {
                   placeholder="email@example.com"
                   aria-invalid={Boolean(fieldErrors.email)}
                   aria-describedby={fieldErrors.email ? 'register-email-error' : undefined}
-                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.email ? 'border-vivid-red' : 'border-pure-black'}`}
+                  className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-role-soft shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.email ? 'border-vivid-red' : 'border-pure-black'}`}
                 />
                 {fieldErrors.email && <p id="register-email-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.email}</p>}
               </div>
@@ -269,7 +269,7 @@ const Register = () => {
                     placeholder="Nhập mã mời do quản trị viên cung cấp"
                     aria-invalid={Boolean(fieldErrors.teacherRegistrationKey)}
                     aria-describedby={fieldErrors.teacherRegistrationKey ? 'register-teacher-key-error' : undefined}
-                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.teacherRegistrationKey ? 'border-vivid-red' : 'border-pure-black'}`}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-role-soft shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.teacherRegistrationKey ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
                   {fieldErrors.teacherRegistrationKey && <p id="register-teacher-key-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.teacherRegistrationKey}</p>}
                 </div>
@@ -294,7 +294,7 @@ const Register = () => {
                     placeholder="••••••••"
                     aria-invalid={Boolean(fieldErrors.password)}
                     aria-describedby={fieldErrors.password ? 'register-password-error' : undefined}
-                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.password ? 'border-vivid-red' : 'border-pure-black'}`}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-role-soft shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.password ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
                   {fieldErrors.password && <p id="register-password-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.password}</p>}
                 </div>
@@ -315,7 +315,7 @@ const Register = () => {
                     placeholder="••••••••"
                     aria-invalid={Boolean(fieldErrors.confirmPassword)}
                     aria-describedby={fieldErrors.confirmPassword ? 'register-confirm-error' : undefined}
-                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-bright-yellow shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.confirmPassword ? 'border-vivid-red' : 'border-pure-black'}`}
+                    className={`w-full px-4 py-3 bg-surface-container-lowest border-[3px] text-body-md text-on-surface placeholder:text-outline focus:outline-none focus:bg-role-soft shadow-[4px_4px_0px_#000000] transition-colors ${fieldErrors.confirmPassword ? 'border-vivid-red' : 'border-pure-black'}`}
                   />
                   {fieldErrors.confirmPassword && <p id="register-confirm-error" className="mt-1 text-label-sm font-bold text-vivid-red">{fieldErrors.confirmPassword}</p>}
                 </div>
@@ -348,7 +348,7 @@ const Register = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 bg-vivid-red text-on-error font-headline font-bold text-headline-sm uppercase tracking-wide border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1.5 active:translate-y-1.5 active:shadow-[0px_0px_0px_#000000] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                className="w-full py-4 bg-role-accent text-role-contrast font-headline font-bold text-headline-sm uppercase tracking-wide border-[3px] border-pure-black shadow-[6px_6px_0px_#000000] hover:translate-x-1 hover:translate-y-1 hover:shadow-[2px_2px_0px_#000000] active:translate-x-1.5 active:translate-y-1.5 active:shadow-[0px_0px_0px_#000000] transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <span>{loading ? 'Đang tạo tài khoản...' : 'Đăng ký ngay'}</span>
                 <span className="material-symbols-outlined text-[20px]">arrow_forward</span>

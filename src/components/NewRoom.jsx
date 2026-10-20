@@ -84,7 +84,7 @@ const NewRoom = ({ onClose }) => {
                     key={option.value}
                     className={`flex cursor-pointer items-start gap-2 border-[2px] border-pure-black p-2 transition-all ${
                       isSelected
-                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
+                        ? 'bg-role-accent text-role-contrast shadow-[2px_2px_0px_#000000]'
                         : 'bg-surface hover:bg-surface-container'
                     }`}
                   >
@@ -97,10 +97,10 @@ const NewRoom = ({ onClose }) => {
                       className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
                     />
                     <div className="min-w-0">
-                      <span className="block text-label-xs font-bold text-on-surface leading-tight">
+                      <span className={`block text-label-xs font-bold leading-tight ${isSelected ? 'text-role-contrast' : 'text-on-surface'}`}>
                         {option.title}
                       </span>
-                      <span className="text-[11px] text-on-surface-variant leading-tight block mt-0.5">
+                      <span className={`text-[11px] leading-tight block mt-0.5 ${isSelected ? 'text-role-contrast/85' : 'text-on-surface-variant'}`}>
                         {option.description}
                       </span>
                     </div>
@@ -123,7 +123,7 @@ const NewRoom = ({ onClose }) => {
                     key={option.value}
                     className={`flex cursor-pointer items-start gap-2 border-[2px] border-pure-black p-2 transition-all ${
                       isSelected
-                        ? 'bg-bright-yellow shadow-[2px_2px_0px_#000000]'
+                        ? 'bg-role-accent text-role-contrast shadow-[2px_2px_0px_#000000]'
                         : 'bg-surface hover:bg-surface-container'
                     }`}
                   >
@@ -136,10 +136,10 @@ const NewRoom = ({ onClose }) => {
                       className="mt-0.5 h-3.5 w-3.5 accent-pure-black cursor-pointer"
                     />
                     <div className="min-w-0">
-                      <span className="block text-label-xs font-bold text-on-surface leading-tight">
+                      <span className={`block text-label-xs font-bold leading-tight ${isSelected ? 'text-role-contrast' : 'text-on-surface'}`}>
                         {option.title}
                       </span>
-                      <span className="text-[11px] text-on-surface-variant leading-tight block mt-0.5">
+                      <span className={`text-[11px] leading-tight block mt-0.5 ${isSelected ? 'text-role-contrast/85' : 'text-on-surface-variant'}`}>
                         {option.description}
                       </span>
                     </div>
@@ -162,7 +162,7 @@ const NewRoom = ({ onClose }) => {
               type="button"
               disabled={isCreating}
               onClick={handleCreateRoom}
-              className="w-full py-3 bg-bright-yellow text-pure-black border-[3px] border-pure-black font-headline font-bold text-label-lg uppercase tracking-wide shadow-[3px_3px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-role-accent text-role-contrast border-[3px] border-pure-black font-headline font-bold text-label-lg uppercase tracking-wide shadow-[3px_3px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <span>{isCreating ? 'Đang khởi tạo...' : 'Tạo phòng học ngay'}</span>
               <span className="material-symbols-outlined text-[20px] font-bold">arrow_forward</span>

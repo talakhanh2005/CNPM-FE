@@ -75,6 +75,7 @@ const Meeting = () => {
   const afterSessionRecordingActiveRef = useRef(false);
   const recordingFinalizePromiseRef = useRef(null);
   const recordTimerRef = useRef(null);
+  const participantRefreshPromiseRef = useRef(null);
 
   const [localStream, setLocalStream] = useState(null);
   const [mediaState, setMediaState] = useState(initialMediaState);
@@ -90,8 +91,8 @@ const Meeting = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingBusy, setRecordingBusy] = useState(false);
-  const [recording, setRecording] = useState(null);
-  const [recordingStatus, setRecordingStatus] = useState(null);
+  const [recordings, setRecordings] = useState([]);
+  const [recordingStatuses, setRecordingStatuses] = useState({});
   const [recordingError, setRecordingError] = useState('');
   const [recordingNeedsUpload, setRecordingNeedsUpload] = useState(false);
   const [recordingStarted, setRecordingStarted] = useState(false);
@@ -105,6 +106,12 @@ const Meeting = () => {
   const emotionPanelEnabled = room?.analysisMode === 'realtime';
   const emotionViewEnabled = emotionPanelEnabled && isTeacher;
   const iceConfigReady = Boolean(room?.id && iceConfig.meetingId === room.id);
+  const participantDirectory = useMemo(() => new Map(
+    (room?.participants || []).map((participant) => [
+      String(participant.id || participant.user_id),
+      participant,
+    ]),
+  ), [room?.participants]);
 
   const handleEmotionResult = useCallback((result) => {
     if (!result) return;
@@ -281,8 +288,16 @@ const Meeting = () => {
               segment.blob,
             );
             segment.uploaded = true;
-            setRecording(uploaded);
-            setRecordingStatus({ status: uploaded.status || 'pending' });
+            setRecordings((current) => {
+              const exists = current.some((item) => item.id === uploaded.id);
+              return exists
+                ? current.map((item) => item.id === uploaded.id ? uploaded : item)
+                : [...current, uploaded];
+            });
+            setRecordingStatuses((current) => ({
+              ...current,
+              [uploaded.id]: { status: uploaded.status || 'pending' },
+            }));
           } catch (error) {
             if (!silent) {
               setRecordingError(getApiErrorMessage(error, 'Không thể tải một bản ghi học sinh lên.'));
@@ -544,6 +559,26 @@ const Meeting = () => {
     return () => { active = false; };
   }, [room?.id]);
 
+  const refreshRoomParticipants = useCallback(() => {
+    const meetingId = room?.id;
+    if (!meetingId) return Promise.resolve(null);
+    if (participantRefreshPromiseRef.current) return participantRefreshPromiseRef.current;
+
+    const request = getRoom(meetingId)
+      .then((nextRoom) => {
+        setRoom((current) => current?.id === meetingId ? nextRoom : current);
+        return nextRoom;
+      })
+      .catch(() => null)
+      .finally(() => {
+        if (participantRefreshPromiseRef.current === request) {
+          participantRefreshPromiseRef.current = null;
+        }
+      });
+    participantRefreshPromiseRef.current = request;
+    return request;
+  }, [room?.id]);
+
   const { remoteParticipants, handleEvent } = useWebRTC({
     user,
     localStream,
@@ -577,6 +612,14 @@ const Meeting = () => {
       if (event?.type === 'EMOTION' && isTeacher) {
         handleEmotionResult(event.payload || event);
       }
+      if (['participant.joined', 'participant.present'].includes(event?.type)) {
+        const participant = event.payload?.participant;
+        const knownParticipant = participantDirectory.get(String(participant?.id || event.senderId));
+        const knownName = participant?.fullName
+          || knownParticipant?.fullName
+          || knownParticipant?.full_name;
+        if (!knownName) void refreshRoomParticipants();
+      }
       void handleEvent(event);
     },
     onStatus: setConnectionStatus,
@@ -597,21 +640,40 @@ const Meeting = () => {
     send,
   });
 
+  const recordingPollKey = useMemo(() => JSON.stringify(
+    recordings
+      .filter((item) => ['pending', 'processing'].includes(
+        recordingStatuses[item.id]?.status || item.status,
+      ))
+      .map((item) => item.id)
+      .sort(),
+  ), [recordings, recordingStatuses]);
+
   useEffect(() => {
-    const recordingId = recording?.id;
-    const status = recordingStatus?.status || recording?.status;
-    if (!recordingId || !['pending', 'processing'].includes(status)) return undefined;
+    const recordingIds = JSON.parse(recordingPollKey);
+    if (!recordingIds.length) return undefined;
     let active = true;
 
     const poll = async () => {
-      try {
-        const nextStatus = await getRecordingStatus(recordingId);
-        if (active) {
-          setRecordingStatus(nextStatus);
-          setRecordingError('');
-        }
-      } catch (error) {
-        if (active) setRecordingError(getApiErrorMessage(error, 'Không thể tải trạng thái phân tích.'));
+      const results = await Promise.allSettled(
+        recordingIds.map((recordingId) => getRecordingStatus(recordingId)),
+      );
+      if (!active) return;
+
+      setRecordingStatuses((current) => {
+        const next = { ...current };
+        results.forEach((result, index) => {
+          if (result.status === 'fulfilled') next[recordingIds[index]] = result.value;
+        });
+        return next;
+      });
+
+      const failedResult = results.find((result) => result.status === 'rejected');
+      if (failedResult) {
+        setRecordingError(getApiErrorMessage(
+          failedResult.reason,
+          'Không thể tải trạng thái của một bản ghi.',
+        ));
       }
     };
 
@@ -620,7 +682,7 @@ const Meeting = () => {
       active = false;
       window.clearInterval(timer);
     };
-  }, [recording?.id, recording?.status, recordingStatus?.status]);
+  }, [recordingPollKey]);
 
   useEffect(() => {
     if (!room?.id) return undefined;
@@ -756,13 +818,13 @@ const Meeting = () => {
     }
   };
 
-  const handleAnalyzeRecording = async () => {
-    if (!recording?.id) return;
+  const handleAnalyzeRecording = async (recordingId) => {
+    if (!recordingId) return;
     try {
       setRecordingBusy(true);
       setRecordingError('');
-      const nextStatus = await requestRecordingAnalysis(recording.id);
-      setRecordingStatus(nextStatus);
+      const nextStatus = await requestRecordingAnalysis(recordingId);
+      setRecordingStatuses((current) => ({ ...current, [recordingId]: nextStatus }));
     } catch (error) {
       setRecordingError(getApiErrorMessage(error, 'Không thể yêu cầu phân tích bản ghi.'));
     } finally {
@@ -770,11 +832,11 @@ const Meeting = () => {
     }
   };
 
-  const handlePlaybackRecording = async () => {
-    if (!recording?.id) return;
+  const handlePlaybackRecording = async (recordingId) => {
+    if (!recordingId) return;
     try {
       setRecordingError('');
-      const playback = await getRecordingPlayback(recording.id);
+      const playback = await getRecordingPlayback(recordingId);
       if (!playback?.url) throw new Error('Backend không trả về liên kết bản ghi.');
       window.open(playback.url, '_blank', 'noopener,noreferrer');
     } catch (error) {
@@ -783,12 +845,23 @@ const Meeting = () => {
   };
 
   const participants = [
-    ...remoteParticipants.map((participant) => ({
-      ...participant,
-      emotion: isTeacher && participant.role === 'student'
-        ? emotionsByStudentId[participant.id] || participant.emotion || null
-        : null,
-    })),
+    ...remoteParticipants.map((participant) => {
+      const knownParticipant = participantDirectory.get(String(participant.id));
+      const participantName = knownParticipant?.fullName
+        || knownParticipant?.full_name
+        || knownParticipant?.name
+        || participant.name
+        || 'Người tham gia';
+      return {
+        ...participant,
+        name: participantName,
+        initials: participantName[0]?.toUpperCase() || participant.initials || 'U',
+        role: participant.role || knownParticipant?.role,
+        emotion: isTeacher && (participant.role || knownParticipant?.role) === 'student'
+          ? emotionsByStudentId[participant.id] || participant.emotion || null
+          : null,
+      };
+    }),
     {
       id: user?.id || 'local-user',
       name: user?.full_name || user?.username || 'Bạn',
@@ -807,14 +880,14 @@ const Meeting = () => {
 
   if (activeRoomError && !room) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center">
+      <main className={`${isTeacher ? 'role-theme-teacher' : 'role-theme-student'} flex min-h-screen items-center justify-center bg-surface font-body p-6 text-center`}>
         <div className="bg-surface-container-lowest border-[3px] border-pure-black p-8 shadow-[8px_8px_0px_#000000] max-w-md">
           <span className="material-symbols-outlined text-[48px] text-tertiary">error</span>
           <p className="mt-4 font-headline font-bold text-headline-sm">{activeRoomError}</p>
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="mt-6 px-6 py-2.5 bg-bright-yellow font-bold border-[2px] border-pure-black shadow-[3px_3px_0px_#000000]"
+            className="mt-6 px-6 py-2.5 bg-role-accent text-role-contrast font-bold border-[2px] border-pure-black shadow-[3px_3px_0px_#000000]"
           >
             Về trang chủ
           </button>
@@ -824,11 +897,11 @@ const Meeting = () => {
   }
 
   return (
-    <main className="relative flex h-screen w-full flex-col overflow-hidden bg-surface font-body text-on-surface">
+    <main className={`${isTeacher ? 'role-theme-teacher' : 'role-theme-student'} relative flex h-screen w-full flex-col overflow-hidden bg-surface font-body text-on-surface`}>
       {/* Top Header Control Bar */}
       <header className="w-full bg-off-white border-b-[3px] border-pure-black px-4 sm:px-gutter py-2.5 sm:py-3 flex items-center justify-between shadow-[4px_4px_0px_#000000] shrink-0 z-20">
         <div className="flex items-center gap-2 sm:gap-space-md">
-          <div className="bg-primary-container border-[2px] sm:border-[3px] border-pure-black px-2.5 sm:px-space-md py-1 font-headline font-bold text-label-md text-on-primary-container shadow-[2px_2px_0px_#000000] flex items-center gap-1 sm:gap-space-xs">
+          <div className="bg-role-accent text-role-contrast border-[2px] sm:border-[3px] border-pure-black px-2.5 sm:px-space-md py-1 font-headline font-bold text-label-md shadow-[2px_2px_0px_#000000] flex items-center gap-1 sm:gap-space-xs">
             <span className="material-symbols-outlined text-[18px]">vpn_key</span>
             #{room?.code || roomId}
             {room?.name && <span className="hidden xl:inline font-mono font-normal">| {room.name}</span>}
@@ -848,7 +921,7 @@ const Meeting = () => {
           )}
 
           {/* Analysis mode badge */}
-          <div className="hidden md:flex items-center gap-2 bg-bright-yellow border-[2px] border-pure-black px-3 py-1 font-headline text-label-md text-pure-black shadow-[2px_2px_0px_#000000]">
+          <div className="hidden md:flex items-center gap-2 bg-role-accent text-role-contrast border-[2px] border-pure-black px-3 py-1 font-headline text-label-md shadow-[2px_2px_0px_#000000]">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-600 animate-pulse" />
             <span>
               {room?.analysisMode === 'after_session'
@@ -922,7 +995,7 @@ const Meeting = () => {
         >
           {/* Toast Notification Banner */}
           {toastMessage && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 border-[3px] border-pure-black bg-bright-yellow text-pure-black px-5 py-2.5 font-bold shadow-[4px_4px_0px_#000000] flex items-center gap-2 text-body-md animate-bounce">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 border-[3px] border-pure-black bg-role-accent text-role-contrast px-5 py-2.5 font-bold shadow-[4px_4px_0px_#000000] flex items-center gap-2 text-body-md animate-bounce">
               <span className="material-symbols-outlined text-[24px]">verified</span>
               <span>{toastMessage}</span>
             </div>
@@ -936,7 +1009,7 @@ const Meeting = () => {
           />
 
           {mediaLoading && (
-            <div className="absolute left-1/2 top-4 -translate-x-1/2 z-20 border-[2px] border-pure-black bg-bright-yellow px-4 py-1.5 text-label-sm font-bold text-pure-black shadow-[3px_3px_0px_#000000]">
+            <div className="absolute left-1/2 top-4 -translate-x-1/2 z-20 border-[2px] border-pure-black bg-role-accent text-role-contrast px-4 py-1.5 text-label-sm font-bold shadow-[3px_3px_0px_#000000]">
               Đang chuẩn bị camera và micro...
             </div>
           )}
@@ -956,8 +1029,9 @@ const Meeting = () => {
           userRole={user?.role}
           meetingId={room?.id}
           participants={participants}
-          recording={recording}
-          recordingStatus={recordingStatus}
+          recordings={recordings}
+          recordingStatuses={recordingStatuses}
+          recordingParticipants={[...(room?.participants || []), ...participants]}
           recordingBusy={recordingBusy}
           recordingError={recordingError}
           recordingNeedsUpload={recordingNeedsUpload && !isRecording}

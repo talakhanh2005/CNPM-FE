@@ -59,6 +59,9 @@
   --color-royal-blue: #0055FF;
   --color-vivid-red: #FF3333;
   --color-off-white: #F8F8F0;
+  --color-role-accent: #FFDE00;
+  --color-role-contrast: #000000;
+  --color-role-soft: #FFF5B1;
 
   --spacing-space-xs: 4px;
   --spacing-space-sm: 8px;
@@ -70,6 +73,18 @@
 
   --font-headline: "Space Grotesk", sans-serif;
   --font-body: "Space Grotesk", sans-serif;
+}
+
+.role-theme-teacher {
+  --color-role-accent: var(--color-royal-blue);
+  --color-role-contrast: #ffffff;
+  --color-role-soft: #dce1ff;
+}
+
+.role-theme-student {
+  --color-role-accent: var(--color-bright-yellow);
+  --color-role-contrast: #000000;
+  --color-role-soft: #fff5b1;
 }
 
 @keyframes teacherContentEnter {

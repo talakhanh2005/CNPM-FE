@@ -39,9 +39,7 @@ const DashboardLayout = ({
         { id: 'report', label: 'Báo cáo cảm xúc', icon: 'psychology', path: '/report' },
       ]
     : [
-        { id: 'dashboard', label: 'Tổng quan', icon: 'dashboard', path: '/student' },
-        { id: 'phong-hoc-cua-toi', label: 'Phòng học của tôi', icon: 'school', path: '/student' },
-        { id: 'lich-su-hoc-tap', label: 'Lịch sử học tập', icon: 'history', path: '/student' },
+        { id: 'dashboard', label: 'Trang chủ', icon: 'home', path: '/student' },
       ];
 
   const handleNavClick = (item) => {
@@ -56,7 +54,7 @@ const DashboardLayout = ({
   };
 
   return (
-    <div className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+    <div className={`${isTeacher ? 'role-theme-teacher' : 'role-theme-student'} bg-surface font-body text-on-surface min-h-screen flex flex-col`}>
       {/* Sidebar for Desktop */}
       <aside
         className={`fixed left-0 top-0 h-full w-72 bg-off-white border-r-[3px] border-pure-black z-50 flex flex-col pt-space-xl pb-space-lg transition-transform duration-200 ${
@@ -76,11 +74,7 @@ const DashboardLayout = ({
                 Neo-Learn AI
               </span>
               <span
-                className={`text-[10px] font-mono font-bold tracking-widest uppercase mt-1 px-1.5 py-0.5 border border-pure-black w-max ${
-                  isTeacher
-                    ? 'bg-royal-blue text-white shadow-[1px_1px_0px_#000000]'
-                    : 'bg-bright-yellow text-pure-black shadow-[1px_1px_0px_#000000]'
-                }`}
+                className="text-[10px] font-mono font-bold tracking-widest uppercase mt-1 px-1.5 py-0.5 border border-pure-black w-max bg-role-accent text-role-contrast shadow-[1px_1px_0px_#000000]"
               >
                 {isTeacher ? '• Giảng dạy' : '• Học tập'}
               </span>
@@ -106,9 +100,7 @@ const DashboardLayout = ({
                 onClick={() => handleNavClick(item)}
                 className={`flex items-center px-space-md py-space-sm rounded-none text-body-md transition-all text-left cursor-pointer ${
                   isActive
-                    ? isTeacher
-                      ? 'bg-royal-blue text-white font-bold border-[3px] border-pure-black shadow-[3px_3px_0px_#000000]'
-                      : 'bg-bright-yellow text-pure-black font-bold border-[3px] border-pure-black shadow-[3px_3px_0px_#000000]'
+                    ? 'bg-role-accent text-role-contrast font-bold border-[3px] border-pure-black shadow-[3px_3px_0px_#000000]'
                     : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'
                 }`}
               >
@@ -123,9 +115,7 @@ const DashboardLayout = ({
         <div className="px-space-md pt-space-md border-t-[3px] border-pure-black mt-auto flex flex-col gap-space-sm">
           <div className="flex items-center gap-space-sm p-space-xs bg-surface-container-low border-[2px] border-pure-black">
             <div
-              className={`w-9 h-9 rounded-full border-[2px] border-pure-black flex items-center justify-center font-bold uppercase shadow-[1px_1px_0px_#000000] ${
-                isTeacher ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'
-              }`}
+              className="w-9 h-9 rounded-full border-[2px] border-pure-black flex items-center justify-center font-bold uppercase shadow-[1px_1px_0px_#000000] bg-role-accent text-role-contrast"
             >
               {(user?.full_name || user?.email)?.[0] || 'U'}
             </div>
@@ -134,11 +124,7 @@ const DashboardLayout = ({
                 {user?.full_name || user?.email || 'Người dùng'}
               </p>
               <span
-                className={`text-[11px] font-bold uppercase font-mono px-1.5 py-0.5 border border-pure-black inline-block mt-0.5 ${
-                  isTeacher
-                    ? 'bg-secondary-fixed text-on-secondary-fixed-variant'
-                    : 'bg-primary-fixed text-on-primary-fixed'
-                }`}
+                className="text-[11px] font-bold uppercase font-mono px-1.5 py-0.5 border border-pure-black inline-block mt-0.5 bg-role-soft text-on-surface"
               >
                 {isTeacher ? 'Giáo viên' : 'Học sinh'}
               </span>
@@ -169,28 +155,26 @@ const DashboardLayout = ({
               <span className="material-symbols-outlined">menu</span>
             </button>
             <div className="hidden sm:inline-block px-3 py-1 bg-surface-container border-[2px] border-pure-black text-label-sm font-bold uppercase">
-              Học kỳ II - 2024/2025
+              {isTeacher ? 'Học kỳ II - 2024/2025' : 'Trang học sinh'}
             </div>
           </div>
 
           <div className="flex items-center gap-space-md">
             {/* Quick Join Button / Modal Trigger */}
-            <button
-              type="button"
-              onClick={() => setShowJoinModal(true)}
-              className="px-3 py-1.5 bg-surface-container-lowest text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container-high transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="material-symbols-outlined text-[18px]">keyboard</span>
-              <span className="hidden sm:inline">Nhập mã phòng</span>
-            </button>
+            {isTeacher && (
+              <button
+                type="button"
+                onClick={() => setShowJoinModal(true)}
+                className="px-3 py-1.5 bg-surface-container-lowest text-on-surface border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:bg-surface-container-high transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <span className="material-symbols-outlined text-[18px]">keyboard</span>
+                <span className="hidden sm:inline">Nhập mã phòng</span>
+              </button>
+            )}
 
             {/* Role indicator */}
             <div
-              className={`flex items-center gap-1.5 px-3 py-1.5 border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] uppercase tracking-wide ${
-                isTeacher
-                  ? 'bg-royal-blue text-white'
-                  : 'bg-bright-yellow text-pure-black'
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] uppercase tracking-wide bg-role-accent text-role-contrast"
             >
               <span className="material-symbols-outlined text-[18px]">
                 {isTeacher ? 'co_present' : 'school'}
@@ -202,9 +186,7 @@ const DashboardLayout = ({
             <div
               onClick={handleLogout}
               title="Nhấn để đăng xuất"
-              className={`w-10 h-10 rounded-full border-[3px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center justify-center cursor-pointer hover:opacity-90 font-bold transition-transform active:translate-x-0.5 active:translate-y-0.5 ${
-                isTeacher ? 'bg-royal-blue text-white' : 'bg-bright-yellow text-pure-black'
-              }`}
+              className="w-10 h-10 rounded-full border-[3px] border-pure-black shadow-[2px_2px_0px_#000000] flex items-center justify-center cursor-pointer hover:opacity-90 font-bold transition-transform active:translate-x-0.5 active:translate-y-0.5 bg-role-accent text-role-contrast"
             >
               <span className="material-symbols-outlined text-[22px]">person</span>
             </div>
@@ -212,12 +194,12 @@ const DashboardLayout = ({
         </header>
 
         {/* Modal: Quick Join Room */}
-        {showJoinModal && (
+        {isTeacher && showJoinModal && (
           <div className="fixed inset-0 z-50 bg-pure-black/50 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-off-white border-[3px] border-pure-black p-space-lg shadow-[8px_8px_0px_#000000] w-full max-w-md">
               <div className="flex items-center justify-between pb-space-sm border-b-[3px] border-pure-black mb-space-md">
                 <h3 className="font-headline font-bold text-headline-sm flex items-center gap-2">
-                  <span className="material-symbols-outlined text-royal-blue">meeting_room</span>
+                  <span className="material-symbols-outlined text-role-accent">meeting_room</span>
                   Tham gia phòng học
                 </h3>
                 <button
@@ -240,7 +222,7 @@ const DashboardLayout = ({
                     onChange={(e) => setQuickRoomCode(e.target.value.replace(/[^a-z0-9]/gi, '').slice(0, 12))}
                     placeholder="VD: ABC123XYZ"
                     autoFocus
-                    className="w-full px-3 py-2.5 bg-surface-container-lowest border-[3px] border-pure-black text-body-md font-mono font-bold focus:bg-bright-yellow outline-none shadow-[2px_2px_0px_#000000]"
+                    className="w-full px-3 py-2.5 bg-surface-container-lowest border-[3px] border-pure-black text-body-md font-mono font-bold focus:bg-role-soft outline-none shadow-[2px_2px_0px_#000000]"
                   />
                 </div>
 
@@ -255,7 +237,7 @@ const DashboardLayout = ({
                   <button
                     type="submit"
                     disabled={!quickRoomCode.trim()}
-                    className="px-5 py-2 bg-bright-yellow text-pure-black border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all disabled:opacity-50"
+                    className="px-5 py-2 bg-role-accent text-role-contrast border-[2px] border-pure-black font-label-md font-bold shadow-[2px_2px_0px_#000000] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5 transition-all disabled:opacity-50"
                   >
                     Tham gia ngay
                   </button>

@@ -146,7 +146,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
   return (
     <div className="space-y-4">
       {isTeacher && (
-        <div className="bg-primary-container border-[3px] border-pure-black p-4 shadow-[4px_4px_0px_#000000]">
+        <div className="bg-role-soft border-[3px] border-pure-black p-4 shadow-[4px_4px_0px_#000000]">
           <input ref={inputRef} type="file" accept={ACCEPTED_DOCUMENTS} onChange={handleUpload} className="hidden" />
           <div className="flex items-center justify-between gap-3">
             <div>
@@ -157,7 +157,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
               type="button"
               disabled={uploading}
               onClick={() => inputRef.current?.click()}
-              className="shrink-0 px-3 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+              className="shrink-0 px-3 py-2 bg-role-accent text-role-contrast border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] disabled:opacity-50"
             >
               {uploading ? `Đang tải${uploadProgress ? ` ${uploadProgress}%` : '...'}` : 'Tải lên'}
             </button>
@@ -176,7 +176,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
         {materials.map((material) => (
           <div key={material.id} className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000] flex items-center justify-between gap-3">
             <div className="min-w-0 flex items-center gap-2">
-              <span className="material-symbols-outlined text-royal-blue">description</span>
+              <span className="material-symbols-outlined text-role-accent">description</span>
               <div className="min-w-0">
                 <div className="font-bold text-body-sm truncate" title={material.filename}>{material.filename}</div>
                 <div className="text-xs text-on-surface-variant">{formatBytes(material.size_bytes)} • {new Date(material.created_at).toLocaleString('vi-VN')}</div>
@@ -187,7 +187,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
               disabled={downloadingId === material.id}
               onClick={() => handleDownload(material)}
               aria-label={`Tải ${material.filename}`}
-              className="shrink-0 p-2 bg-bright-yellow border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+              className="shrink-0 p-2 bg-role-accent text-role-contrast border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] disabled:opacity-50"
             >
               <span className="material-symbols-outlined text-[20px]">download</span>
             </button>

@@ -8,18 +8,18 @@ const createMessage = (role, content) => ({
   content,
 });
 
-const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
+const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [messagesByMeeting, setMessagesByMeeting] = useState({});
   const messagesEndRef = useRef(null);
-  const messages = messagesByMeeting[meetingId] || EMPTY_MESSAGES;
+  const messages = messagesByMeeting[meetingCode] || EMPTY_MESSAGES;
   const messageCount = messages.length;
 
   useEffect(() => {
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [isOpen, messageCount]);
 
-  if (!meetingId) return null;
+  if (!meetingCode) return null;
 
   const handleSubmit = (event) => {
     event.preventDefault();
@@ -28,8 +28,8 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
 
     setMessagesByMeeting((current) => ({
       ...current,
-      [meetingId]: [
-        ...(current[meetingId] || []),
+      [meetingCode]: [
+        ...(current[meetingCode] || []),
         createMessage('user', content),
         createMessage('assistant', 'đéo biết'),
       ],
@@ -47,8 +47,8 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
         }}
         aria-label="Mở trợ lý báo cáo"
         title="Mở trợ lý báo cáo"
-        data-meeting-id={meetingId}
-        className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-pure-black bg-bright-yellow text-pure-black shadow-[5px_5px_0px_#000000] transition-transform hover:-translate-y-1 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_#000000]"
+        data-meeting-code={meetingCode}
+        className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-[3px] border-pure-black bg-role-accent text-role-contrast shadow-[5px_5px_0px_#000000] transition-transform hover:-translate-y-1 active:translate-x-0.5 active:translate-y-0.5 active:shadow-[2px_2px_0px_#000000]"
       >
         <span className="material-symbols-outlined text-[30px]">chat</span>
       </button>
@@ -58,10 +58,10 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
   return (
     <section
       aria-label="Trợ lý báo cáo"
-      data-meeting-id={meetingId}
+      data-meeting-code={meetingCode}
       className="fixed bottom-4 right-4 z-50 flex h-[min(32rem,calc(100dvh-7rem))] w-[calc(100vw-2rem)] flex-col overflow-hidden border-[3px] border-pure-black bg-off-white shadow-[7px_7px_0px_#000000] sm:bottom-6 sm:right-6 sm:w-96"
     >
-      <header className="flex shrink-0 items-center gap-3 border-b-[3px] border-pure-black bg-bright-yellow px-3 py-2.5">
+      <header className="flex shrink-0 items-center gap-3 border-b-[3px] border-pure-black bg-role-accent text-role-contrast px-3 py-2.5">
         <button
           type="button"
           onClick={onClose}
@@ -73,8 +73,8 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
         </button>
         <div className="min-w-0">
           <h2 className="font-headline text-body-md font-bold">Trợ lý báo cáo</h2>
-          <p className="truncate font-mono text-[11px] text-on-surface-variant" title={meetingId}>
-            Meeting: {meetingId}
+          <p className="truncate font-mono text-[11px] text-role-contrast/80" title={meetingCode}>
+            Mã phòng: {meetingCode}
           </p>
         </div>
       </header>
@@ -93,7 +93,7 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
           >
             <div className={`max-w-[82%] border-[2px] border-pure-black px-3 py-2 text-body-sm font-medium shadow-[2px_2px_0px_#000000] ${
               message.role === 'user'
-                ? 'bg-royal-blue text-white'
+                ? 'bg-role-accent text-role-contrast'
                 : 'bg-bright-yellow text-pure-black'
             }`}>
               {message.content}
@@ -110,13 +110,13 @@ const ReportChatBox = ({ meetingId, isOpen, onOpen, onClose }) => {
           onChange={(event) => setInput(event.target.value)}
           placeholder="Nhập câu hỏi..."
           aria-label="Nội dung câu hỏi"
-          className="min-w-0 flex-1 border-[2px] border-pure-black bg-white px-3 py-2 text-body-sm outline-none focus:bg-primary-container"
+          className="min-w-0 flex-1 border-[2px] border-pure-black bg-white px-3 py-2 text-body-sm outline-none focus:bg-role-soft"
         />
         <button
           type="submit"
           disabled={!input.trim()}
           aria-label="Gửi câu hỏi"
-          className="flex h-10 w-11 shrink-0 items-center justify-center border-[2px] border-pure-black bg-royal-blue text-white shadow-[2px_2px_0px_#000000] disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex h-10 w-11 shrink-0 items-center justify-center border-[2px] border-pure-black bg-role-accent text-role-contrast shadow-[2px_2px_0px_#000000] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span className="material-symbols-outlined text-[21px]">send</span>
         </button>

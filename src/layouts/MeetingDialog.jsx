@@ -18,8 +18,9 @@ const MeetingDialog = ({
   connectionStatus,
   meetingId,
   participants = [],
-  recording,
-  recordingStatus,
+  recordings,
+  recordingStatuses,
+  recordingParticipants,
   recordingBusy,
   recordingError,
   recordingNeedsUpload,
@@ -45,9 +46,9 @@ const MeetingDialog = ({
       {/* Header */}
       <div className="flex shrink-0 items-center justify-between border-b-[3px] border-pure-black px-5 py-4 bg-surface-container">
         <h2 className="m-0 font-headline font-bold text-headline-sm flex items-center gap-2">
-          {activePanel === 'chat' && <span className="material-symbols-outlined text-royal-blue">chat</span>}
+          {activePanel === 'chat' && <span className="material-symbols-outlined text-role-accent">chat</span>}
           {activePanel === 'emotion' && <span className="material-symbols-outlined text-vivid-red" style={{ fontVariationSettings: "'FILL' 1" }}>psychology</span>}
-          {activePanel === 'materials' && <span className="material-symbols-outlined text-royal-blue">folder_open</span>}
+          {activePanel === 'materials' && <span className="material-symbols-outlined text-role-accent">folder_open</span>}
           {activePanel === 'settings' && <span className="material-symbols-outlined">settings</span>}
           {dialogTitles[activePanel]}
         </h2>
@@ -56,7 +57,7 @@ const MeetingDialog = ({
           onClick={onClose}
           title="Đóng bảng"
           aria-label="Đóng bảng"
-          className="w-8 h-8 border-[2px] border-pure-black bg-surface flex items-center justify-center font-bold text-lg hover:bg-bright-yellow cursor-pointer shadow-[2px_2px_0px_#000000]"
+          className="w-8 h-8 border-[2px] border-pure-black bg-surface flex items-center justify-center font-bold text-lg hover:bg-role-soft cursor-pointer shadow-[2px_2px_0px_#000000]"
         >
           ✕
         </button>
@@ -83,11 +84,11 @@ const MeetingDialog = ({
                 <input
                   type="text"
                   placeholder="Nhập tin nhắn..."
-                  className="flex-1 px-3 py-2 bg-surface-container-lowest border-[2px] border-pure-black text-body-sm focus:bg-bright-yellow outline-none"
+                  className="flex-1 px-3 py-2 bg-surface-container-lowest border-[2px] border-pure-black text-body-sm focus:bg-role-soft outline-none"
                 />
                 <button
                   type="button"
-                  className="px-3 py-2 bg-bright-yellow border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] cursor-pointer"
+                  className="px-3 py-2 bg-role-accent text-role-contrast border-[2px] border-pure-black font-bold text-label-sm shadow-[2px_2px_0px_#000000] cursor-pointer"
                 >
                   Gửi
                 </button>
@@ -104,14 +105,14 @@ const MeetingDialog = ({
           <div className="space-y-3 text-body-sm">
             <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000] flex justify-between items-center">
               <span className="font-bold">Kết nối realtime</span>
-              <span className="font-mono px-2 py-0.5 bg-bright-yellow border border-pure-black font-bold">
+              <span className="font-mono px-2 py-0.5 bg-role-accent text-role-contrast border border-pure-black font-bold">
                 {connectionStatus}
               </span>
             </div>
 
             <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000] flex justify-between items-center">
               <span className="font-bold">Vai trò trong phòng</span>
-              <span className="font-bold text-secondary">
+              <span className="font-bold text-role-accent">
                 {userRole === 'teacher' ? 'Giáo viên (Chủ tọa)' : 'Học sinh'}
               </span>
             </div>
@@ -122,8 +123,9 @@ const MeetingDialog = ({
 
             {userRole === 'teacher' && (
               <RecordingStatus
-                recording={recording}
-                status={recordingStatus}
+                recordings={recordings}
+                statuses={recordingStatuses}
+                participants={recordingParticipants}
                 busy={recordingBusy}
                 error={recordingError}
                 needsUpload={recordingNeedsUpload}

@@ -72,7 +72,7 @@ const JoinRoom = ({ roomCode, onClose }) => {
               type="button"
               disabled={isJoining}
               onClick={handleJoin}
-              className="w-full py-3 bg-bright-yellow text-pure-black border-[3px] border-pure-black font-headline font-bold text-label-lg uppercase tracking-wide shadow-[3px_3px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full py-3 bg-role-accent text-role-contrast border-[3px] border-pure-black font-headline font-bold text-label-lg uppercase tracking-wide shadow-[3px_3px_0px_#000000] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-[2px_2px_0px_#000000] active:translate-x-[3px] active:translate-y-[3px] active:shadow-none transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <span>{isJoining ? 'Đang kết nối...' : 'Vào phòng học ngay'}</span>
               <span className="material-symbols-outlined text-[20px] font-bold">arrow_forward</span>
