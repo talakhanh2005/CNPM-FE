@@ -6,6 +6,10 @@ export const getMeetingReport = (meetingId, params = {}) => (
   dataOf(axiosClient.get(`/meetings/${meetingId}/report`, { params }))
 );
 
+export const askReportQuestion = (meetingId, question) => (
+  dataOf(axiosClient.post(`/meetings/${meetingId}/chat`, { question }))
+);
+
 export const getRecordingAnalysis = (recordingId, params = {}) => (
   dataOf(axiosClient.get(`/recordings/${recordingId}/analysis`, { params }))
 );

@@ -57,9 +57,18 @@ axiosClient.interceptors.response.use(undefined, async (error) => {
   }
 });
 
-export const getApiErrorMessage = (error, fallback = 'Đã có lỗi xảy ra.') => (
-  error?.response?.data?.message || error?.message || fallback
-);
+export const getApiErrorMessage = (error, fallback = 'Đã có lỗi xảy ra. Vui lòng thử lại.') => {
+  if (error?.isAxiosError) {
+    const status = error.response?.status;
+    if (!status) return 'Mất kết nối máy chủ. Vui lòng thử lại sau.';
+    if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    if (status === 403) return 'Bạn không có quyền thực hiện thao tác này.';
+    if (status === 429) return 'Bạn thao tác quá nhanh. Vui lòng chờ một lúc rồi thử lại.';
+    if (status >= 500) return 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.';
+    return fallback;
+  }
+  return error?.message || fallback;
+};
 
 export const getApiErrorPayload = (error) => ({
   status: error?.response?.status,

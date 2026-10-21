@@ -15,7 +15,7 @@ const EmotionDistributionChart = ({ report }) => {
             <h2 className="text-headline-sm font-headline font-bold">Phân bổ cảm xúc toàn buổi</h2>
           </div>
           <p className="text-body-sm text-on-surface-variant mt-1">
-            Tỉ lệ được tính trên toàn bộ mẫu AI hợp lệ của các recording đã hoàn thành.
+            Tỉ lệ được tính từ toàn bộ kết quả cảm xúc hợp lệ của các bản ghi đã phân tích.
           </p>
         </div>
 

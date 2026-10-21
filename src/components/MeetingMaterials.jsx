@@ -13,7 +13,7 @@ const materialErrorMessages = {
   INVALID_FILENAME: 'Tên tài liệu không hợp lệ.',
   UNSUPPORTED_DOCUMENT: 'Định dạng tài liệu không được hỗ trợ.',
   INVALID_DOCUMENT: 'Nội dung tài liệu không đúng với định dạng tệp.',
-  UPLOAD_BUSY: 'Backend đang xử lý một tệp khác. Vui lòng thử lại sau.',
+  UPLOAD_BUSY: 'Hệ thống đang xử lý một tệp khác. Vui lòng thử lại sau.',
   UPLOAD_TIMEOUT: 'Tải tài liệu lên quá thời gian cho phép. Vui lòng thử lại.',
   MATERIAL_NOT_FOUND: 'Tài liệu không còn tồn tại.',
 };
@@ -130,7 +130,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
       setDownloadingId(material.id);
       setError('');
       const playback = await getMaterialDownload(material.id);
-      if (!playback?.url) throw new Error('Missing download URL');
+      if (!playback?.url) throw new Error('Chưa thể tải tài liệu này. Vui lòng thử lại sau.');
       const anchor = document.createElement('a');
       anchor.href = playback.url;
       anchor.target = '_blank';

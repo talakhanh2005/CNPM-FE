@@ -1,3 +1,41 @@
+const getRecordingButtonContent = ({
+  isRecording,
+  recordingBusy,
+  recordingLocked,
+  recordingNeedsUpload,
+  recordingForAnalysis,
+}) => {
+  let ariaLabel;
+  let icon;
+  let label;
+
+  if (recordingLocked && isRecording) {
+    ariaLabel = 'Đang ghi hình đến khi giáo viên đóng phòng';
+    icon = 'fiber_manual_record';
+    label = 'Đang ghi đến khi đóng phòng';
+  } else if (recordingLocked && recordingNeedsUpload) {
+    ariaLabel = 'Các bản ghi đang chờ tải lên';
+    icon = 'cloud_upload';
+    label = 'Chờ tải bản ghi lên';
+  } else if (recordingLocked) {
+    ariaLabel = 'Các bản ghi đã tải lên';
+    icon = 'cloud_done';
+    label = 'Các bản ghi đã tải lên';
+  } else if (isRecording) {
+    ariaLabel = 'Dừng ghi hình';
+    icon = 'stop_circle';
+    label = 'Dừng Ghi hình';
+  } else {
+    ariaLabel = recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình';
+    icon = 'fiber_manual_record';
+    label = recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình';
+  }
+
+  if (recordingBusy) label = recordingForAnalysis ? 'Đang tải...' : 'Đang lưu...';
+
+  return { ariaLabel, icon, label };
+};
+
 const MeetingControls = ({
   mediaState,
   activeDialog,
@@ -14,6 +52,14 @@ const MeetingControls = ({
   emotionPanelEnabled = true,
   onRecordToggle,
 }) => {
+  const recordingButton = getRecordingButtonContent({
+    isRecording,
+    recordingBusy,
+    recordingLocked,
+    recordingNeedsUpload,
+    recordingForAnalysis,
+  });
+
   return (
     <footer className="h-20 bg-off-white border-t-[3px] border-pure-black shadow-[0px_-4px_0px_#000000] px-gutter flex items-center justify-between shrink-0 z-30">
       {/* Left Media Controls */}
@@ -79,30 +125,18 @@ const MeetingControls = ({
             type="button"
             disabled={recordingBusy || recordingLocked}
             onClick={onRecordToggle}
-            aria-label={recordingLocked
-              ? isRecording
-                ? 'Đang ghi hình đến khi giáo viên đóng phòng'
-                : recordingNeedsUpload ? 'Các bản ghi đang chờ upload' : 'Các bản ghi đã upload'
-              : isRecording ? 'Dừng ghi hình' : recordingForAnalysis ? 'Bắt đầu ghi hình để AI phân tích' : 'Bắt đầu ghi hình'}
+            aria-label={recordingButton.ariaLabel}
             className={`flex items-center gap-1.5 px-3 py-2 sm:px-4 sm:py-2.5 border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md cursor-pointer disabled:opacity-50 ${
               isRecording
                 ? 'bg-vivid-red text-white animate-pulse'
-                : 'bg-role-accent text-role-contrast hover:opacity-90'
+                : 'bg-vivid-red text-on-error'
             }`}
           >
             <span className="material-symbols-outlined text-[20px]">
-              {recordingLocked
-                ? isRecording ? 'fiber_manual_record' : recordingNeedsUpload ? 'cloud_upload' : 'cloud_done'
-                : isRecording ? 'stop_circle' : 'fiber_manual_record'}
+              {recordingButton.icon}
             </span>
             <span className="hidden sm:inline">
-              {recordingBusy
-                ? recordingForAnalysis ? 'Đang tải...' : 'Đang lưu...'
-                : recordingLocked
-                  ? isRecording ? 'Đang ghi đến khi đóng phòng' : recordingNeedsUpload ? 'Chờ upload các bản ghi' : 'Các bản ghi đã upload'
-                  : isRecording
-                  ? 'Dừng Ghi hình'
-                  : recordingForAnalysis ? 'Ghi hình (AI)' : 'Ghi hình'}
+              {recordingButton.label}
             </span>
           </button>
         )}

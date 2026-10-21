@@ -140,7 +140,7 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
         } catch {
           callbacksRef.current.onEvent?.({
             type: 'socket.error',
-            message: 'WebSocket trả về dữ liệu không hợp lệ.',
+            message: 'Kết nối phòng gặp lỗi. Vui lòng thử lại.',
           });
         }
       };

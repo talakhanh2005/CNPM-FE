@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { askReportQuestion } from '../api/reportApi';
+import { getApiErrorPayload } from '../api/axiosClient';
 
 const EMPTY_MESSAGES = [];
 
@@ -8,12 +10,34 @@ const createMessage = (role, content) => ({
   content,
 });
 
-const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
+const chatErrorMessage = (error) => {
+  const { code, details, status } = getApiErrorPayload(error);
+  if (code === 'ANALYSIS_NOT_READY') {
+    const dataStatus = details?.[0]?.data_status;
+    if (dataStatus === 'NO_RECORDING') return 'Phòng này chưa có bản ghi để phân tích.';
+    if (dataStatus === 'FAILED') return 'Phân tích bản ghi thất bại nên chưa thể hỏi báo cáo.';
+    return 'Bản ghi đang chờ phân tích hoặc chưa xử lý xong. Hãy thử lại sau.';
+  }
+  if (code === 'INVALID_MEETING_MODE') return 'Trợ lý báo cáo chỉ dùng cho phòng được phân tích sau buổi học.';
+  if (status === 403) return 'Chỉ giáo viên chủ phòng mới có thể hỏi về báo cáo này.';
+  if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+  if (status === 404 && code === 'HTTP_ERROR') {
+    return 'Trợ lý báo cáo hiện chưa thể trả lời. Vui lòng thử lại sau.';
+  }
+  if (status === 404) return 'Không tìm thấy phòng hoặc bản ghi để trả lời câu hỏi.';
+  if (status === 422) return 'Câu hỏi không hợp lệ. Hãy nhập từ 1 đến 500 ký tự.';
+  if (error?.isAxiosError && !error?.response) return 'Mất kết nối máy chủ. Vui lòng thử lại sau.';
+  return 'Không thể nhận câu trả lời lúc này. Vui lòng thử lại sau.';
+};
+
+const ReportChatBox = ({ meetingCode, meetingId, isOpen, onOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [messagesByMeeting, setMessagesByMeeting] = useState({});
+  const [sendingByMeeting, setSendingByMeeting] = useState({});
   const messagesEndRef = useRef(null);
   const messages = messagesByMeeting[meetingCode] || EMPTY_MESSAGES;
   const messageCount = messages.length;
+  const sending = Boolean(sendingByMeeting[meetingCode]);
 
   useEffect(() => {
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -21,20 +45,41 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
 
   if (!meetingCode) return null;
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const content = input.trim();
-    if (!content) return;
+    if (!content || !meetingId || sending) return;
+
+    const submittedCode = meetingCode;
+    const submittedId = meetingId;
 
     setMessagesByMeeting((current) => ({
       ...current,
-      [meetingCode]: [
-        ...(current[meetingCode] || []),
+      [submittedCode]: [
+        ...(current[submittedCode] || []),
         createMessage('user', content),
-        createMessage('assistant', 'đéo biết'),
       ],
     }));
     setInput('');
+    setSendingByMeeting((current) => ({ ...current, [submittedCode]: true }));
+
+    try {
+      const result = await askReportQuestion(submittedId, content);
+      if (typeof result?.answer !== 'string' || !result.answer.trim()) {
+        throw new Error('Trợ lý báo cáo chưa thể trả lời.');
+      }
+      setMessagesByMeeting((current) => ({
+        ...current,
+        [submittedCode]: [...(current[submittedCode] || []), createMessage('assistant', result.answer)],
+      }));
+    } catch (error) {
+      setMessagesByMeeting((current) => ({
+        ...current,
+        [submittedCode]: [...(current[submittedCode] || []), createMessage('assistant', chatErrorMessage(error))],
+      }));
+    } finally {
+      setSendingByMeeting((current) => ({ ...current, [submittedCode]: false }));
+    }
   };
 
   if (!isOpen) {
@@ -67,7 +112,7 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
           onClick={onClose}
           aria-label="Thu nhỏ khung chat"
           title="Thu nhỏ"
-          className="flex h-9 w-9 shrink-0 items-center justify-center border-[2px] border-pure-black bg-off-white shadow-[2px_2px_0px_#000000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
+          className="flex h-9 w-9 shrink-0 items-center justify-center border-[2px] border-pure-black bg-off-white text-pure-black shadow-[2px_2px_0px_#000000] active:translate-x-0.5 active:translate-y-0.5 active:shadow-none"
         >
           <span className="material-symbols-outlined text-[22px]">remove</span>
         </button>
@@ -82,7 +127,7 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-surface-container-low p-4" aria-live="polite">
         {!messages.length && (
           <div className="border-[2px] border-dashed border-pure-black bg-surface p-4 text-center text-body-sm text-on-surface-variant">
-            Nhập câu hỏi về báo cáo meeting này.
+            Nhập câu hỏi về báo cáo buổi học này.
           </div>
         )}
 
@@ -100,6 +145,7 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
             </div>
           </div>
         ))}
+        {sending && <p className="text-body-sm text-on-surface-variant">Đang trả lời...</p>}
         <div ref={messagesEndRef} />
       </div>
 
@@ -108,13 +154,14 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
+          maxLength={500}
           placeholder="Nhập câu hỏi..."
           aria-label="Nội dung câu hỏi"
           className="min-w-0 flex-1 border-[2px] border-pure-black bg-white px-3 py-2 text-body-sm outline-none focus:bg-role-soft"
         />
         <button
           type="submit"
-          disabled={!input.trim()}
+          disabled={!input.trim() || !meetingId || sending}
           aria-label="Gửi câu hỏi"
           className="flex h-10 w-11 shrink-0 items-center justify-center border-[2px] border-pure-black bg-role-accent text-role-contrast shadow-[2px_2px_0px_#000000] disabled:cursor-not-allowed disabled:opacity-50"
         >

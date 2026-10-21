@@ -83,7 +83,7 @@ const History = () => {
 
   const handleDelete = async (meeting) => {
     const confirmed = window.confirm(
-      `Xóa vĩnh viễn meeting #${meeting.code}? Dữ liệu meeting, recording và report trong database sẽ bị xóa.`,
+      `Xóa vĩnh viễn buổi học #${meeting.code}? Thông tin, bản ghi và báo cáo của buổi học sẽ bị xóa và không thể khôi phục.`,
     );
     if (!confirmed) return;
 
@@ -97,7 +97,7 @@ const History = () => {
         return next;
       });
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Không thể xóa meeting.'));
+      setError(getApiErrorMessage(err, 'Không thể xóa buổi học.'));
     } finally {
       setDeletingId('');
     }
@@ -195,7 +195,7 @@ const History = () => {
                 <th className="p-space-md border-r-[2px] border-pure-black">Thời gian</th>
                 <th className="p-space-md border-r-[2px] border-pure-black text-center">Hành động</th>
                 <th className="w-20 p-space-md text-center">
-                  <span className="sr-only">Xóa meeting</span>
+                  <span className="sr-only">Xóa buổi học</span>
                 </th>
               </tr>
             </thead>
@@ -263,7 +263,7 @@ const History = () => {
                         }`}
                       >
                         <span className="material-symbols-outlined text-[18px]">{reportUnavailable ? 'block' : 'insights'}</span>
-                        {reportUnavailable ? 'Không có report' : 'Xem chi tiết'}
+                        {reportUnavailable ? 'Không có báo cáo' : 'Xem chi tiết'}
                       </button>
                     </td>
 
@@ -273,8 +273,8 @@ const History = () => {
                         type="button"
                         disabled={Boolean(deletingId)}
                         onClick={() => handleDelete(item)}
-                        aria-label={`Xóa meeting ${item.name || item.code || ''}`.trim()}
-                        title={deletingId === item.id ? 'Đang xóa meeting' : 'Xóa meeting'}
+                        aria-label={`Xóa buổi học ${item.name || item.code || ''}`.trim()}
+                        title={deletingId === item.id ? 'Đang xóa buổi học' : 'Xóa buổi học'}
                         className="inline-flex size-10 cursor-pointer items-center justify-center border-[2px] border-pure-black bg-vivid-red text-white shadow-[2px_2px_0px_#000000] transition-all hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none focus-visible:outline-[3px] focus-visible:outline-offset-2 focus-visible:outline-royal-blue active:translate-x-0.5 active:translate-y-0.5 active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
                       >
                         <span className={`material-symbols-outlined text-[22px] ${deletingId === item.id ? 'animate-spin' : ''}`} aria-hidden="true">
