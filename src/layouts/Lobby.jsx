@@ -4,6 +4,7 @@ import { isMediaStreamRetained } from '../utils/mediaSession';
 
 const stopTracks = (stream) => stream?.getTracks().forEach((track) => track.stop());
 const isLiveTrack = (track) => track?.readyState !== 'ended';
+const audioBarFactors = [0.55, 0.75, 0.9, 1, 1, 0.9, 0.75, 0.55];
 
 const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
   const videoRef = useRef(null);
@@ -14,7 +15,10 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [selectedDevices, setSelectedDevices] = useState({ mic: '', camera: '', speaker: '' });
   const [showDeviceSettings, setShowDeviceSettings] = useState(false);
-  const [audioLevel, setAudioLevel] = useState(false);
+  const [mediaStream, setMediaStream] = useState(null);
+  const [cameraSettings, setCameraSettings] = useState(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [audioDb, setAudioDb] = useState(null);
   const permissionVersion = useMediaPermissionVersion();
   const [devices, setDevices] = useState({
     mics: [{ value: '', label: 'Đang tải micro...' }],
@@ -54,6 +58,10 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
       if (!isCamOn && !isMicOn) {
         if (!isMediaStreamRetained(currentStream)) stopTracks(currentStream);
         streamRef.current = null;
+        setMediaStream(null);
+        setCameraSettings(null);
+        setAudioLevel(0);
+        setAudioDb(null);
         mediaChangeRef.current?.({
           camera: false,
           mic: false,
@@ -90,6 +98,12 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
           : new MediaStream(nextTracks);
 
         streamRef.current = nextStream;
+        setMediaStream(nextStream);
+        setCameraSettings(isCamOn ? nextStream.getVideoTracks().find(isLiveTrack)?.getSettings?.() || null : null);
+        if (!isMicOn) {
+          setAudioLevel(0);
+          setAudioDb(null);
+        }
         committed = true;
         mediaChangeRef.current?.({
           camera: isCamOn,
@@ -104,6 +118,8 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
         if (cancelled) return;
         if (needsVideo && !currentVideo) setIsCamOn(false);
         if (needsAudio && !currentAudio) setIsMicOn(false);
+        setMediaStream(currentStream || null);
+        setCameraSettings(isCamOn ? currentVideo?.getSettings?.() || null : null);
         mediaChangeRef.current?.({
           camera: isCamOn && Boolean(currentVideo),
           mic: isMicOn && Boolean(currentAudio),
@@ -121,6 +137,39 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
       if (!committed) stopTracks(addedStream);
     };
   }, [isCamOn, isMicOn, permissionVersion, selectedDevices.camera, selectedDevices.mic, selectedDevices.speaker]);
+
+  useEffect(() => {
+    const audioTrack = isMicOn ? mediaStream?.getAudioTracks().find(isLiveTrack) : null;
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!audioTrack || !AudioContextClass) return undefined;
+
+    const context = new AudioContextClass();
+    const source = context.createMediaStreamSource(new MediaStream([audioTrack]));
+    const analyser = context.createAnalyser();
+    analyser.fftSize = 1024;
+    source.connect(analyser);
+    const samples = new Uint8Array(analyser.fftSize);
+    void context.resume().catch(() => {});
+
+    const timer = window.setInterval(() => {
+      if (audioTrack.readyState === 'ended' || context.state !== 'running') return;
+      analyser.getByteTimeDomainData(samples);
+      const meanSquare = samples.reduce((sum, sample) => {
+        const amplitude = (sample - 128) / 128;
+        return sum + amplitude * amplitude;
+      }, 0) / samples.length;
+      const db = meanSquare > 0 ? 10 * Math.log10(meanSquare) : -Infinity;
+      setAudioDb(db);
+      setAudioLevel(Math.max(0, Math.min(100, (db + 60) / 60 * 100)));
+    }, 100);
+
+    return () => {
+      window.clearInterval(timer);
+      source.disconnect();
+      analyser.disconnect();
+      void context.close().catch(() => {});
+    };
+  }, [isMicOn, mediaStream]);
 
   useEffect(() => {
     cleanupArmedRef.current = false;
@@ -177,9 +226,6 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
         </div>
 
         <div className="flex items-center gap-2">
-          <span className="hidden sm:inline-flex items-center px-2.5 py-0.5 bg-role-accent text-role-contrast border-[2px] border-pure-black text-label-xs font-bold uppercase shadow-[1px_1px_0px_#000000]">
-            Trạng thái: Đã kết nối
-          </span>
           {onClose && (
             <button
               type="button"
@@ -275,13 +321,9 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                 </div>
               )}
 
-              {/* Badges on video */}
+              {/* Camera settings reported by the browser */}
               <div className="absolute bottom-2 left-2 bg-pure-black/90 text-on-primary px-2 py-0.5 text-[11px] font-mono border border-pure-black">
-                FPS: 60 | 1080p | 14ms
-              </div>
-              <div className="absolute top-2 right-2 px-1.5 py-0.5 bg-role-accent border-[2px] border-pure-black font-bold text-xs text-role-contrast shadow-[1px_1px_0px_#000000] flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600" />
-                AI Sẵn sàng
+                FPS: {cameraSettings?.frameRate ? Math.round(cameraSettings.frameRate) : '--'} | {cameraSettings?.width && cameraSettings?.height ? `${cameraSettings.width}×${cameraSettings.height}` : '--'}
               </div>
             </div>
 
@@ -291,17 +333,16 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
                 {isMicOn ? 'mic' : 'mic_off'}
               </span>
               <div className="flex-1 flex items-center gap-1 h-3">
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-3/4 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-1/2 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-5/6 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-full border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-1/3 border border-pure-black ${isMicOn ? 'bg-role-accent animate-pulse' : 'bg-surface-variant'}`} />
-                <div className={`w-1.5 h-2/3 border border-pure-black ${isMicOn ? 'bg-role-accent' : 'bg-surface-variant'}`} />
+                {audioBarFactors.map((factor, index) => (
+                  <div
+                    key={index}
+                    className={`w-1.5 border border-pure-black transition-[height] duration-75 ${isMicOn && audioLevel > 2 ? 'bg-role-accent' : 'bg-surface-variant'}`}
+                    style={{ height: `${Math.max(15, isMicOn ? audioLevel * factor : 0)}%` }}
+                  />
+                ))}
               </div>
               <span className="text-label-xs font-mono font-bold">
-                {isMicOn ? '-18dB' : 'Muted'}
+                {!isMicOn ? 'Tắt mic' : audioDb === null ? 'Chưa đo được' : audioDb < -60 ? '≤ -60 dBFS' : `${Math.round(audioDb)} dBFS`}
               </span>
             </div>
           </div>
@@ -362,16 +403,9 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
               </div>
 
               <div className="flex items-center gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAudioLevel(true);
-                    setTimeout(() => setAudioLevel(false), 2000);
-                  }}
-                  className="px-2.5 py-1 bg-role-accent text-role-contrast border-[2px] border-pure-black text-label-xs uppercase font-bold hover:opacity-90 transition-colors cursor-pointer"
-                >
-                  {audioLevel ? 'Mic OK!' : 'Thử Micro'}
-                </button>
+                <span className="px-2.5 py-1 bg-role-accent text-role-contrast border-[2px] border-pure-black text-label-xs uppercase font-bold">
+                  {!isMicOn ? 'Bật micro để thử' : audioLevel > 8 ? 'Micro đang nhận âm' : 'Hãy nói vào micro'}
+                </span>
               </div>
             </div>
           )}
@@ -379,21 +413,9 @@ const Lobby = ({ children, onMediaChange, roomTitle, roomCode, onClose }) => {
 
         {/* Right Column: Room Details & Form controls (5 Cols) */}
         <div className="lg:col-span-5 flex flex-col gap-3">
-          {/* Header Card: Room info & Status */}
+          {/* Header Card: Room info */}
           <div className="bg-surface-container-lowest border-[3px] border-pure-black shadow-[4px_4px_0px_#000000] p-3.5 flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <span className="px-2 py-0.5 bg-role-accent text-role-contrast text-label-xs uppercase font-bold border-[2px] border-pure-black">
-                Trực tiếp hôm nay
-              </span>
-              <div className="flex items-center gap-1.5 bg-role-accent text-role-contrast px-2 py-0.5 border-[2px] border-pure-black text-label-xs font-bold">
-                <span className="material-symbols-outlined text-[15px]" style={{ fontVariationSettings: "'FILL' 1" }}>
-                  psychology
-                </span>
-                <span>AI Sẵn sàng: 95%</span>
-              </div>
-            </div>
-
-            <div className="flex justify-between items-center pt-1 border-t-[2px] border-pure-black">
+            <div className="flex justify-between items-center">
               <span className="font-label-xs uppercase text-on-surface-variant font-bold">Mã phòng:</span>
               <span className="font-label-sm font-mono bg-role-accent text-role-contrast px-2 py-0.5 border-[2px] border-pure-black font-bold">
                 {roomCode ? `#${roomCode}` : '#TẠO-MỚI'}

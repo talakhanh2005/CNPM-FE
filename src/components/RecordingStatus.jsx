@@ -46,7 +46,7 @@ const RecordingStatus = ({
             Các bản ghi chưa tải lên vẫn được giữ tạm trong tab này để thử lại hoặc tải về máy.
           </p>
           <div className="flex gap-2 pt-1">
-            <button type="button" disabled={busy} onClick={onRetryUpload} className="flex-1 px-2 py-1.5 border-[2px] border-pure-black bg-role-accent text-role-contrast font-bold text-label-sm disabled:opacity-50">Thử upload lại</button>
+            <button type="button" disabled={busy} onClick={onRetryUpload} className="flex-1 px-2 py-1.5 border-[2px] border-pure-black bg-role-accent text-role-contrast font-bold text-label-sm disabled:opacity-50">Tải lên lại</button>
             <button type="button" disabled={busy} onClick={onDownloadPending} className="flex-1 px-2 py-1.5 border-[2px] border-pure-black bg-surface-container font-bold text-label-sm disabled:opacity-50">Tải về máy</button>
           </div>
         </div>
@@ -73,7 +73,7 @@ const RecordingStatus = ({
                   {labels[currentStatus] || 'Chưa có trạng thái'}
                 </span>
               </div>
-              {status.error_message && <div className="text-label-sm font-bold text-vivid-red">{status.error_message}</div>}
+              {status.error_message && <div className="text-label-sm font-bold text-vivid-red">Không thể phân tích bản ghi này. Vui lòng thử lại.</div>}
               <div className="flex gap-2">
                 <button type="button" disabled={busy} onClick={() => onPlayback(recording.id)} className="flex-1 px-2 py-1.5 border-[2px] border-pure-black bg-surface-container font-bold text-label-sm disabled:opacity-50">Xem bản ghi</button>
                 {['uploaded', 'failed'].includes(currentStatus) && (

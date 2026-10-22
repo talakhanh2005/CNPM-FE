@@ -235,6 +235,7 @@ Các chức năng đã được nối vào UI:
 - Học sinh gửi frame realtime qua WebSocket, tự fallback REST khi socket chưa sẵn sàng.
 - Giáo viên xem emotion realtime, xác suất và emotion log trong panel meeting.
 - Giáo viên xem report meeting thật gồm distribution, timeline, summary và dữ liệu theo student ID.
+- Chatbox của báo cáo `after_session` gửi câu hỏi tới `POST /meetings/{meetingId}/chat` và hiển thị câu trả lời từ backend. Endpoint này có trên nhánh BE `feat/merge-tu-tien`; nhánh BE đang chạy phải có endpoint đó thì chat mới hoạt động.
 - Recording được upload, yêu cầu phân tích, polling trạng thái và mở playback URL trong phiên hiện tại.
 - Lịch sử meeting giáo viên tự cập nhật khi recording đang được xử lý.
 
@@ -246,14 +247,13 @@ Các dữ liệu sau nằm trực tiếp trong component để trình bày UI v�
 
 - Lịch học đã lên lịch và một số nội dung thống kê trong dashboard giáo viên.
 - Danh sách lớp, lịch sử và thống kê trong dashboard học sinh.
-- Tin nhắn chào mừng trong meeting panel.
 
 Các dữ liệu này cần được thay bằng response backend khi triển khai từng màn hình hoàn chỉnh.
 
 ## Giới hạn hiện tại
 
 - Backend hiện giới hạn một giáo viên và một học sinh trong một meeting.
-- Chat chưa có API/protocol backend.
+- Chat trực tiếp trong meeting hiện mới có giao diện; ô nhập và nút gửi chưa nối API/protocol backend.
 - Backend không có tên/chủ đề meeting và chế độ giáo viên duyệt người tham gia.
 - Report backend và route FE hiện chỉ dành cho giáo viên.
 - Backend chưa có API liệt kê recording theo meeting, nên playback trong UI chỉ áp dụng cho bản ghi vừa upload trong phiên hiện tại.

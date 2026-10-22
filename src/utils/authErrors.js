@@ -16,13 +16,13 @@ const validationMessage = (field, detail) => {
   if (field === 'email') return 'Email không đúng định dạng, ví dụ: ten@example.com.';
   if (field === 'password') {
     if (type.includes('too_short')) return 'Mật khẩu phải có ít nhất 8 ký tự.';
-    if (type.includes('too_long') || type.includes('value_error')) return 'Mật khẩu không được vượt quá 72 byte UTF-8.';
+    if (type.includes('too_long') || type.includes('value_error')) return 'Mật khẩu quá dài. Vui lòng dùng mật khẩu ngắn hơn.';
     return 'Mật khẩu không hợp lệ.';
   }
   if (field === 'fullName') return 'Họ và tên phải từ 1 đến 150 ký tự và không được để trống.';
   if (field === 'role') return 'Vai trò tài khoản không hợp lệ.';
   if (field === 'teacherRegistrationKey') return 'Mã mời giáo viên không hợp lệ.';
-  return detail?.msg || 'Dữ liệu không hợp lệ.';
+  return 'Dữ liệu không hợp lệ.';
 };
 
 export const mapAuthApiError = (error, action) => {
@@ -30,7 +30,7 @@ export const mapAuthApiError = (error, action) => {
   const result = { formError: '', fieldErrors: {} };
 
   if (payload.isNetworkError) {
-    result.formError = 'Không thể kết nối tới máy chủ. Hãy kiểm tra backend đang chạy và thử lại.';
+    result.formError = 'Mất kết nối máy chủ. Vui lòng thử lại sau.';
     return result;
   }
 
@@ -53,7 +53,7 @@ export const mapAuthApiError = (error, action) => {
       const field = fieldNames[backendField];
       if (field && !result.fieldErrors[field]) result.fieldErrors[field] = validationMessage(field, detail);
     });
-    if (!Object.keys(result.fieldErrors).length) result.formError = 'Thông tin gửi lên chưa đúng định dạng.';
+    if (!Object.keys(result.fieldErrors).length) result.formError = 'Thông tin chưa hợp lệ. Vui lòng kiểm tra và thử lại.';
     return result;
   }
   if (payload.status === 429 || payload.code === 'RATE_LIMITED') {

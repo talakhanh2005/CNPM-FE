@@ -155,7 +155,7 @@ const DashboardLayout = ({
               <span className="material-symbols-outlined">menu</span>
             </button>
             <div className="hidden sm:inline-block px-3 py-1 bg-surface-container border-[2px] border-pure-black text-label-sm font-bold uppercase">
-              {isTeacher ? 'Học kỳ II - 2024/2025' : 'Trang học sinh'}
+              {isTeacher ? 'Trang giáo viên' : 'Trang học sinh'}
             </div>
           </div>
 

@@ -24,7 +24,7 @@ const Login = () => {
     else if (!isValidEmail(normalizedEmail)) nextErrors.email = 'Email không đúng định dạng, ví dụ: ten@example.com.';
     if (!password) nextErrors.password = 'Vui lòng nhập mật khẩu.';
     else if (password.length < 8) nextErrors.password = 'Mật khẩu phải có ít nhất 8 ký tự.';
-    else if (utf8Length(password) > 72) nextErrors.password = 'Mật khẩu không được vượt quá 72 byte UTF-8.';
+    else if (utf8Length(password) > 72) nextErrors.password = 'Mật khẩu quá dài. Vui lòng dùng mật khẩu ngắn hơn.';
     if (Object.keys(nextErrors).length) {
       setFieldErrors(nextErrors);
       setFormError('');

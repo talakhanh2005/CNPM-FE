@@ -53,7 +53,7 @@ const EmotionReport = () => {
       try {
         const nextMeeting = await getRoom(selectedId);
         if (nextMeeting.analysisMode !== 'after_session') {
-          throw new Error('Meeting realtime không có báo cáo sau buổi học.');
+          throw new Error('Phòng học này không có báo cáo sau buổi học.');
         }
         const nextReport = await getMeetingReport(selectedId, {
           source: 'batch',
@@ -68,7 +68,7 @@ const EmotionReport = () => {
         if (!active) return;
         setMeeting(null);
         setReport(null);
-        setError(getApiErrorMessage(loadError, 'Không thể tải báo cáo meeting.'));
+        setError(getApiErrorMessage(loadError, 'Không thể tải báo cáo buổi học.'));
       } finally {
         if (active) setLoading(false);
       }
@@ -138,14 +138,14 @@ const EmotionReport = () => {
               </div>
               <h1 className="font-headline text-headline-md font-bold truncate">{meeting?.name || 'Báo cáo cảm xúc'}</h1>
               <p className="text-label-sm text-on-surface-variant">
-                {formatDate(meeting?.createdAt)} · {formatDuration(meeting?.createdAt, meeting?.endedAt)} · {report?.sample_count || 0} mẫu AI hợp lệ
+                {formatDate(meeting?.createdAt)} · {formatDuration(meeting?.createdAt, meeting?.endedAt)} · {report?.sample_count || 0} kết quả cảm xúc hợp lệ
               </p>
             </div>
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
             <select value={selectedId} onChange={selectMeeting} className="max-w-60 px-3 py-2 bg-surface border-[3px] border-pure-black font-mono font-bold shadow-[3px_3px_0px_#000000]">
-              {!meetings.length && <option value="">Chưa có meeting</option>}
+              {!meetings.length && <option value="">Chưa có buổi học</option>}
               {meetings.map((item) => <option key={item.id} value={item.id}>#{item.code} · {formatDate(item.createdAt)}</option>)}
             </select>
             <button type="button" onClick={() => { setLoading(true); setRefreshTick((current) => current + 1); }} className="h-11 px-3 bg-surface-container border-[3px] border-pure-black font-bold shadow-[3px_3px_0px_#000000] flex items-center gap-1.5">
@@ -165,9 +165,9 @@ const EmotionReport = () => {
       </header>
 
       <div className="mx-auto max-w-[1600px] px-gutter py-space-xl lg:px-margin">
-        {loading && <div className="border-[3px] border-pure-black bg-off-white p-12 text-center font-bold shadow-[5px_5px_0px_#000000]">Đang tải báo cáo từ backend...</div>}
+        {loading && <div className="border-[3px] border-pure-black bg-off-white p-12 text-center font-bold shadow-[5px_5px_0px_#000000]">Đang tải báo cáo...</div>}
         {error && <div className="border-[3px] border-pure-black bg-tertiary-container p-6 font-bold shadow-[5px_5px_0px_#000000]">{error}</div>}
-        {!loading && !error && !report && <div className="border-[3px] border-pure-black bg-off-white p-12 text-center">Chưa có meeting để xem báo cáo.</div>}
+        {!loading && !error && !report && <div className="border-[3px] border-pure-black bg-off-white p-12 text-center">Chưa có buổi học nào để xem báo cáo.</div>}
 
         {!loading && !error && report && (
           <div className="space-y-space-xl">
@@ -181,8 +181,8 @@ const EmotionReport = () => {
       </div>
 
       <ReportChatBox
-        meetingId={selectedId}
-        meetingCode={meeting?.code || ''}
+        meetingCode={meeting?.id === selectedId ? meeting.code : ''}
+        meetingId={meeting?.id === selectedId ? meeting.id : ''}
         isOpen={chatOpen}
         onOpen={() => setChatOpen(true)}
         onClose={() => setChatOpen(false)}

@@ -2,6 +2,15 @@ import EmotionPanel from '../components/EmotionPanel';
 import MeetingMaterials from '../components/MeetingMaterials';
 import RecordingStatus from '../components/RecordingStatus';
 
+const connectionLabels = {
+  connecting: 'Đang kết nối',
+  reconnecting: 'Đang kết nối lại',
+  connected: 'Đã kết nối',
+  error: 'Mất kết nối',
+  failed: 'Mất kết nối',
+  closed: 'Đã ngắt kết nối',
+};
+
 const dialogTitles = {
   chat: 'Trò chuyện trực tiếp',
   emotion: 'Phân tích AI Cảm xúc',
@@ -38,7 +47,7 @@ const MeetingDialog = ({
   return (
     <aside
       onAnimationEnd={onAnimationEnd}
-      className={`absolute bottom-20 right-0 top-16 z-30 flex w-[min(380px,100vw)] flex-col bg-off-white border-l-[3px] border-pure-black shadow-[-6px_0px_0px_#000000] text-on-surface ${
+      className={`absolute inset-y-0 right-0 z-30 flex w-[min(380px,100vw)] flex-col border-l border-pure-black bg-off-white text-on-surface ${
         isVisible ? 'meeting-dialog-visible' : 'meeting-dialog-exit'
       }`}
       aria-label={dialogTitles[activePanel]}
@@ -66,19 +75,7 @@ const MeetingDialog = ({
       {/* Content */}
       <div className="min-h-0 flex-1 overflow-y-auto p-5 flex flex-col gap-4 font-body">
         {activePanel === 'chat' && (
-          <div className="flex flex-col h-full justify-between gap-4">
-            <div className="space-y-3">
-              <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000]">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-label-sm font-bold text-secondary">Hệ thống AI</span>
-                  <span className="text-xs font-mono text-outline">Vừa xong</span>
-                </div>
-                <p className="text-body-sm text-on-surface">
-                  Chào mừng bạn đến với lớp học trực tuyến Neo-Learn AI. Hãy giữ trật tự và tập trung nghe giảng!
-                </p>
-              </div>
-            </div>
-
+          <div className="flex h-full flex-col justify-end">
             <div className="border-t-[2px] border-pure-black pt-3">
               <div className="flex gap-2">
                 <input
@@ -104,9 +101,9 @@ const MeetingDialog = ({
         {activePanel === 'settings' && (
           <div className="space-y-3 text-body-sm">
             <div className="bg-surface border-[2px] border-pure-black p-3 shadow-[2px_2px_0px_#000000] flex justify-between items-center">
-              <span className="font-bold">Kết nối realtime</span>
+              <span className="font-bold">Kết nối phòng học</span>
               <span className="font-mono px-2 py-0.5 bg-role-accent text-role-contrast border border-pure-black font-bold">
-                {connectionStatus}
+                {connectionLabels[connectionStatus] || 'Chưa xác định'}
               </span>
             </div>
 
@@ -118,7 +115,7 @@ const MeetingDialog = ({
             </div>
 
             <div className="p-3 bg-surface-container-low border-[2px] border-pure-black text-xs text-on-surface-variant leading-relaxed">
-              Luồng âm thanh và hình ảnh sử dụng WebRTC native. Tín hiệu phòng được điều phối qua WebSocket backend.
+              Nếu kết nối bị gián đoạn, phòng học sẽ tự thử kết nối lại.
             </div>
 
             {userRole === 'teacher' && (

@@ -122,7 +122,6 @@ const TeacherHome = () => {
                   <span className="material-symbols-outlined text-[16px]">co_present</span>
                   TRUNG TÂM GIẢNG DẠY
                 </span>
-                <span className="text-on-surface-variant text-label-sm font-mono">Học kỳ II - 2024/2025</span>
               </div>
               <h1 className="text-headline-xl-mobile md:text-headline-xl font-headline font-bold text-on-surface tracking-tight">
                 Xin chào, Thầy/Cô {user?.full_name || user?.email || 'Hoàng'}! <span className="inline-block animate-bounce">📚</span>
@@ -216,9 +215,6 @@ const TeacherHome = () => {
                         <span className="material-symbols-outlined text-[16px]">psychology</span> Chế độ phân tích
                       </span>
                       <span className="text-on-surface">{item.analysisMode === 'after_session' ? 'Đánh giá sau' : 'Realtime'}</span>
-                    </div>
-                    <div className="w-full bg-surface-container-high h-3 border-[2px] border-pure-black overflow-hidden">
-                      <div className="bg-secondary h-full" style={{ width: studentCount ? '100%' : '12%' }} />
                     </div>
                   </div>
 

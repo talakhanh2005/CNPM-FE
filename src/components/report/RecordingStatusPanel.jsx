@@ -29,21 +29,21 @@ const RecordingStatusPanel = ({ report }) => {
       <div className="border-b-[2px] border-pure-black pb-space-md">
         <div className="flex items-center gap-2">
           <span className="material-symbols-outlined text-[28px] text-vivid-red">video_file</span>
-          <h2 className="text-headline-sm font-headline font-bold">Trạng thái xử lý recording</h2>
+          <h2 className="text-headline-sm font-headline font-bold">Trạng thái xử lý bản ghi</h2>
         </div>
         <p className="text-body-sm text-on-surface-variant mt-1">
-          Tiến độ upload và phân tích các video học sinh trong meeting.
+          Tiến độ tải lên và phân tích video của học sinh trong buổi học.
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mt-space-lg">
         <div className="bg-surface-bright border-[2px] border-pure-black p-3">
-          <span className="block text-[11px] font-bold uppercase text-on-surface-variant">Tổng recording</span>
+          <span className="block text-[11px] font-bold uppercase text-on-surface-variant">Tổng bản ghi</span>
           <strong className="block text-headline-lg font-headline mt-1">{total}</strong>
         </div>
         <div className="bg-surface-bright border-[2px] border-pure-black p-3">
-          <span className="block text-[11px] font-bold uppercase text-on-surface-variant">Trạng thái report</span>
-          <strong className="block text-label-lg font-headline mt-2">{reportStatusLabel[report?.status] || report?.status || 'Chưa có dữ liệu'}</strong>
+          <span className="block text-[11px] font-bold uppercase text-on-surface-variant">Trạng thái báo cáo</span>
+          <strong className="block text-label-lg font-headline mt-2">{reportStatusLabel[report?.status] || 'Chưa có dữ liệu'}</strong>
         </div>
       </div>
 
@@ -74,7 +74,7 @@ const RecordingStatusPanel = ({ report }) => {
 
       {!total && (
         <div className="mt-space-lg border-[2px] border-pure-black bg-bright-yellow p-3 text-body-sm font-bold">
-          Chưa có recording nào được backend ghi nhận cho meeting này.
+          Chưa có bản ghi nào cho buổi học này.
         </div>
       )}
     </section>

@@ -74,7 +74,7 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
             <h2 className="text-headline-sm font-headline font-bold">Timeline theo từng học sinh</h2>
           </div>
           <p className="text-body-sm text-on-surface-variant mt-1">
-            Mỗi điểm là một kết quả trong recording của học sinh; trục thời gian tính từ đầu từng recording.
+            Mỗi điểm là một kết quả trong bản ghi của học sinh; trục thời gian tính từ đầu từng bản ghi.
           </p>
         </div>
         <div className="flex flex-wrap gap-2 text-[11px] font-bold">
@@ -91,13 +91,13 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
       </div>
 
       <div className="mt-space-md flex flex-wrap items-center justify-between gap-2 text-label-sm">
-        <span className="font-bold">{rows.length} học sinh · {timeline.length}/{timelineTotal} điểm timeline đang tải</span>
-        <span className="text-on-surface-variant">Di chuột vào điểm để xem recording và độ tin cậy.</span>
+        <span className="font-bold">{rows.length} học sinh · {timeline.length}/{timelineTotal} điểm cảm xúc đang hiển thị</span>
+        <span className="text-on-surface-variant">Di chuột vào điểm để xem bản ghi và độ tin cậy.</span>
       </div>
 
       {!rows.length ? (
         <div className="mt-space-lg min-h-48 border-[2px] border-pure-black bg-surface-bright flex items-center justify-center text-body-sm text-on-surface-variant">
-          Chưa có timeline học sinh để hiển thị.
+          Chưa có dữ liệu cảm xúc theo thời gian của học sinh.
         </div>
       ) : (
         <div className="mt-space-lg border-[2px] border-pure-black bg-surface-bright overflow-x-auto">
@@ -139,7 +139,7 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
                       `Thời gian: ${formatTimelineTime(point.timestamp)}`,
                       `Cảm xúc: ${meta.label}`,
                       `Độ tin cậy: ${percentOf(point.confidence).toFixed(1)}%`,
-                      `Recording: ${point.recording_id || 'Không xác định'}`,
+                      `Bản ghi: ${point.recording_id || 'Không xác định'}`,
                     ].join('\n');
                     return (
                       <span
@@ -159,7 +159,7 @@ const StudentEmotionTimeline = ({ meeting, report }) => {
 
       {rows.some((row) => row.points.length > row.visiblePoints.length) && (
         <p className="mt-2 text-[11px] text-on-surface-variant">
-          Timeline dày được lấy mẫu tối đa {MAX_POINTS_PER_STUDENT} điểm mỗi học sinh để giữ hiệu năng hiển thị; số liệu phân bổ phía trên vẫn dùng toàn bộ sample_counts backend.
+          Khi có quá nhiều kết quả, mỗi học sinh chỉ hiện tối đa {MAX_POINTS_PER_STUDENT} điểm để biểu đồ dễ theo dõi. Biểu đồ phân bổ phía trên vẫn tính từ toàn bộ dữ liệu.
         </p>
       )}
     </section>
