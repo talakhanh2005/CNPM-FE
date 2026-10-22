@@ -181,6 +181,7 @@ const EmotionReport = () => {
       </div>
 
       <ReportChatBox
+        meetingId={selectedId}
         meetingCode={meeting?.code || ''}
         isOpen={chatOpen}
         onOpen={() => setChatOpen(true)}

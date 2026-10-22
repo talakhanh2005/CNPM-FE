@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import { getApiErrorMessage } from '../api/axiosClient';
+import { askMeetingChat } from '../api/reportApi';
 
 const EMPTY_MESSAGES = [];
 
@@ -8,33 +10,55 @@ const createMessage = (role, content) => ({
   content,
 });
 
-const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
+const ReportChatBox = ({ meetingId, meetingCode, isOpen, onOpen, onClose }) => {
   const [input, setInput] = useState('');
   const [messagesByMeeting, setMessagesByMeeting] = useState({});
+  const [sendingMeetingId, setSendingMeetingId] = useState('');
   const messagesEndRef = useRef(null);
-  const messages = messagesByMeeting[meetingCode] || EMPTY_MESSAGES;
+  const messages = messagesByMeeting[meetingId] || EMPTY_MESSAGES;
   const messageCount = messages.length;
+  const isSending = sendingMeetingId === meetingId;
 
   useEffect(() => {
     if (isOpen) messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [isOpen, messageCount]);
 
-  if (!meetingCode) return null;
+  if (!meetingId) return null;
 
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const content = input.trim();
-    if (!content) return;
+    if (!content || isSending) return;
 
     setMessagesByMeeting((current) => ({
       ...current,
-      [meetingCode]: [
-        ...(current[meetingCode] || []),
+      [meetingId]: [
+        ...(current[meetingId] || []),
         createMessage('user', content),
-        createMessage('assistant', 'đéo biết'),
       ],
     }));
     setInput('');
+    setSendingMeetingId(meetingId);
+    try {
+      const response = await askMeetingChat(meetingId, content);
+      setMessagesByMeeting((current) => ({
+        ...current,
+        [meetingId]: [
+          ...(current[meetingId] || []),
+          createMessage('assistant', response?.answer || 'Không nhận được câu trả lời từ trợ lý.'),
+        ],
+      }));
+    } catch (error) {
+      setMessagesByMeeting((current) => ({
+        ...current,
+        [meetingId]: [
+          ...(current[meetingId] || []),
+          createMessage('assistant', getApiErrorMessage(error, 'Không thể kết nối với trợ lý báo cáo.')),
+        ],
+      }));
+    } finally {
+      setSendingMeetingId((current) => current === meetingId ? '' : current);
+    }
   };
 
   if (!isOpen) {
@@ -100,6 +124,13 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
             </div>
           </div>
         ))}
+        {isSending && (
+          <div className="flex justify-start">
+            <div className="max-w-[82%] border-[2px] border-pure-black bg-bright-yellow px-3 py-2 text-body-sm font-medium text-pure-black shadow-[2px_2px_0px_#000000]">
+              Đang phân tích câu hỏi...
+            </div>
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 
@@ -108,13 +139,14 @@ const ReportChatBox = ({ meetingCode, isOpen, onOpen, onClose }) => {
           type="text"
           value={input}
           onChange={(event) => setInput(event.target.value)}
+          disabled={isSending}
           placeholder="Nhập câu hỏi..."
           aria-label="Nội dung câu hỏi"
           className="min-w-0 flex-1 border-[2px] border-pure-black bg-white px-3 py-2 text-body-sm outline-none focus:bg-role-soft"
         />
         <button
           type="submit"
-          disabled={!input.trim()}
+          disabled={!input.trim() || isSending}
           aria-label="Gửi câu hỏi"
           className="flex h-10 w-11 shrink-0 items-center justify-center border-[2px] border-pure-black bg-role-accent text-role-contrast shadow-[2px_2px_0px_#000000] disabled:cursor-not-allowed disabled:opacity-50"
         >

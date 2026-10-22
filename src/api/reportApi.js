@@ -17,3 +17,10 @@ export const getRecordingStatus = (recordingId) => (
 export const requestRecordingAnalysis = (recordingId) => (
   dataOf(axiosClient.post(`/recordings/${recordingId}/analyze`))
 );
+
+export const askMeetingChat = (meetingId, question, recordingId = null) => (
+  dataOf(axiosClient.post(`/meetings/${meetingId}/chat`, {
+    question,
+    ...(recordingId ? { recording_id: recordingId } : {}),
+  }))
+);
