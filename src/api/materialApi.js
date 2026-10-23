@@ -11,6 +11,9 @@ const documentMimes = {
   xls: 'application/vnd.ms-excel',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   txt: 'text/plain',
+  png: 'image/png',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
 };
 
 export const uploadMaterial = (meetingId, file, options = {}) => dataOf(axiosClient.post(
@@ -31,4 +34,8 @@ export const getMeetingMaterials = (meetingId, params = {}) => (
 
 export const getMaterialDownload = (materialId) => (
   dataOf(axiosClient.get(`/materials/${materialId}/download`))
+);
+
+export const getPresentedMaterial = (meetingId, materialId) => (
+  dataOf(axiosClient.get(`/meetings/${meetingId}/documents/${materialId}`))
 );

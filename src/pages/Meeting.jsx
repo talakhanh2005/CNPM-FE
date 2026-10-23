@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import CameraGrid from '../components/CameraGrid';
 import LoadingPage from '../components/LoadingPage';
+import MaterialViewer from '../components/MaterialViewer';
 import MeetingControls from '../components/MeetingControls';
 import MeetingDialog from '../layouts/MeetingDialog';
 import useAuth from '../hooks/useAuth';
@@ -10,6 +11,7 @@ import useMeetingRecording from '../hooks/useMeetingRecording';
 import useWebRTC from '../hooks/useWebRTC';
 import useWebSocket from '../hooks/useWebSocket';
 import { closeRoom, getIceConfig, getRoom, leaveRoom } from '../api/meetingApi';
+import { getPresentedMaterial } from '../api/materialApi';
 import { getApiErrorMessage } from '../api/axiosClient';
 import { fallbackIceServers, normalizeIceServers } from '../config/iceServers';
 import { takeRetainedMediaStream } from '../utils/mediaSession';
@@ -50,6 +52,7 @@ const Meeting = () => {
   const hasLeftRoomRef = useRef(false);
   const exitGuardArmedRef = useRef(false);
   const participantRefreshPromiseRef = useRef(null);
+  const presentationRequestRef = useRef(0);
 
   const [localStream, setLocalStream] = useState(null);
   const [mediaState, setMediaState] = useState(initialMediaState);
@@ -65,9 +68,15 @@ const Meeting = () => {
   const [emotionsByStudentId, setEmotionsByStudentId] = useState({});
   const [toastMessage, setToastMessage] = useState('');
   const [iceConfig, setIceConfig] = useState({ meetingId: null, servers: fallbackIceServers });
+  const [presentedMaterial, setPresentedMaterial] = useState(null);
+  const [presentationPage, setPresentationPage] = useState(1);
+  const [presentationLoading, setPresentationLoading] = useState(false);
+  const [presentationError, setPresentationError] = useState('');
+  const [presentationBusyId, setPresentationBusyId] = useState('');
   const activeRoomError = roomError || (!roomLoading && !room ? 'Không tìm thấy dữ liệu phòng. Hãy tham gia lại từ trang chủ.' : '');
 
   const isTeacher = user?.role === 'teacher';
+  const presentationActive = Boolean(presentedMaterial || presentationLoading || presentationError);
   const isAfterSession = room?.analysisMode === 'after_session';
   const emotionPanelEnabled = room?.analysisMode === 'realtime';
   const emotionViewEnabled = emotionPanelEnabled && isTeacher;
@@ -215,6 +224,37 @@ const Meeting = () => {
     return request;
   }, [room?.id]);
 
+  const clearLocalPresentation = useCallback(() => {
+    presentationRequestRef.current += 1;
+    setPresentedMaterial(null);
+    setPresentationPage(1);
+    setPresentationLoading(false);
+    setPresentationError('');
+    setPresentationBusyId('');
+  }, []);
+
+  const loadPresentedMaterial = useCallback(async (materialId, page = 1, { silent = false } = {}) => {
+    const meetingId = room?.id;
+    if (!meetingId || !materialId) return null;
+    const requestId = presentationRequestRef.current + 1;
+    presentationRequestRef.current = requestId;
+    if (!silent) setPresentationLoading(true);
+    setPresentationError('');
+    try {
+      const material = await getPresentedMaterial(meetingId, materialId);
+      if (presentationRequestRef.current !== requestId) return null;
+      setPresentedMaterial(material);
+      if (!silent) setPresentationPage(Math.max(1, Number(page) || 1));
+      return material;
+    } catch (error) {
+      if (presentationRequestRef.current !== requestId) return null;
+      setPresentationError(getApiErrorMessage(error, 'Không thể mở tài liệu đang trình chiếu.'));
+      return null;
+    } finally {
+      if (presentationRequestRef.current === requestId && !silent) setPresentationLoading(false);
+    }
+  }, [room?.id]);
+
   const { remoteParticipants, handleEvent } = useWebRTC({
     user,
     localStream,
@@ -258,6 +298,18 @@ const Meeting = () => {
       if (event?.type === 'EMOTION' && isTeacher) {
         handleEmotionResult(event.payload || event);
       }
+      if (event?.type === 'document.present') {
+        void loadPresentedMaterial(event.payload?.material_id, event.payload?.page);
+      }
+      if (event?.type === 'document.page') {
+        const materialId = event.payload?.material_id;
+        if (materialId && presentedMaterial?.id !== materialId) {
+          void loadPresentedMaterial(materialId, event.payload?.page);
+        } else {
+          setPresentationPage(Math.max(1, Number(event.payload?.page) || 1));
+        }
+      }
+      if (event?.type === 'document.stop') clearLocalPresentation();
       if (['participant.joined', 'participant.present'].includes(event?.type)) {
         const participant = event.payload?.participant;
         const knownParticipant = participantDirectory.get(String(participant?.id || event.senderId));
@@ -274,6 +326,15 @@ const Meeting = () => {
   useEffect(() => {
     sendRef.current = send;
   }, [send]);
+
+  useEffect(() => {
+    if (!presentedMaterial?.id) return undefined;
+    const expiresIn = Math.max(60, Number(presentedMaterial.expires_in) || 300);
+    const refreshTimer = window.setTimeout(() => {
+      void loadPresentedMaterial(presentedMaterial.id, presentationPage, { silent: true });
+    }, Math.max(30, expiresIn - 30) * 1000);
+    return () => window.clearTimeout(refreshTimer);
+  }, [loadPresentedMaterial, presentationPage, presentedMaterial?.expires_in, presentedMaterial?.id]);
 
   useEmotionMonitoring({
     enabled: Boolean(
@@ -375,6 +436,41 @@ const Meeting = () => {
     setDialogVisible(true);
   };
 
+  const handlePresentMaterial = async (material) => {
+    if (!isTeacher || !material?.id) return;
+    setPresentationBusyId(material.id);
+    const loaded = await loadPresentedMaterial(material.id, 1);
+    if (loaded) {
+      const sent = send({
+        type: 'document.present',
+        payload: { material_id: material.id, page: 1 },
+      });
+      if (sent) {
+        setDialogVisible(false);
+      } else {
+        clearLocalPresentation();
+        setRoomError('Chưa thể trình chiếu vì kết nối phòng đang gián đoạn.');
+      }
+    }
+    setPresentationBusyId('');
+  };
+
+  const handlePresentationPageChange = (page) => {
+    const nextPage = Math.min(10000, Math.max(1, Number(page) || 1));
+    setPresentationPage(nextPage);
+    if (isTeacher && presentedMaterial?.id) {
+      send({
+        type: 'document.page',
+        payload: { material_id: presentedMaterial.id, page: nextPage },
+      });
+    }
+  };
+
+  const handleClosePresentation = () => {
+    if (isTeacher && presentedMaterial?.id) send({ type: 'document.stop', payload: {} });
+    clearLocalPresentation();
+  };
+
   const handleRetryRecordingUpload = async () => {
     const uploaded = await retryRecordingUpload();
     if (uploaded) setRoomError('');
@@ -448,6 +544,9 @@ const Meeting = () => {
       cameraOn: mediaState.camera,
     },
   ];
+  const presentationCameraParticipants = isTeacher
+    ? participants.filter((participant) => participant.role === 'student')
+    : participants;
 
   if (roomLoading && !room) {
     return <LoadingPage message="Đang tải phòng học..." />;
@@ -543,7 +642,9 @@ const Meeting = () => {
         {/* Video stage and side panel share the same height. */}
         <div className="relative flex min-h-0 flex-1 overflow-hidden">
           <section
-            className={`relative flex min-h-0 flex-1 overflow-y-auto p-3 sm:p-5 transition-[padding] duration-300 ${
+            className={`relative flex min-h-0 flex-1 p-3 sm:p-5 transition-[padding] duration-300 ${
+              presentationActive ? 'overflow-hidden' : 'overflow-y-auto'
+            } ${
               dialogVisible ? 'lg:pr-[390px]' : ''
             }`}
           >
@@ -555,12 +656,41 @@ const Meeting = () => {
               </div>
             )}
 
-            <CameraGrid
-              participants={participants}
-              speakerOn={mediaState.speaker}
-              speakerDeviceId={speakerDeviceId}
-              showEmotion={emotionViewEnabled}
-            />
+            <div className={`flex min-h-0 w-full flex-1 gap-4 ${presentationActive ? 'flex-col lg:flex-row' : ''}`}>
+              <div className={presentationActive
+                ? 'flex min-h-0 shrink-0 flex-col lg:w-[280px] xl:w-[320px]'
+                : 'w-full'}
+              >
+                {presentationActive && (
+                  <div className="mb-2 flex shrink-0 items-center justify-between border-[2px] border-pure-black bg-role-soft px-3 py-2 font-bold shadow-[2px_2px_0px_#000000]">
+                    <span className="flex items-center gap-1.5">
+                      <span className="material-symbols-outlined text-[19px]">groups</span>
+                      Camera học sinh
+                    </span>
+                    <span className="font-mono text-xs">{presentationCameraParticipants.length}</span>
+                  </div>
+                )}
+                <div className={presentationActive ? 'min-h-0 overflow-y-auto pr-1' : ''}>
+                  <CameraGrid
+                    participants={presentationActive ? presentationCameraParticipants : participants}
+                    speakerOn={mediaState.speaker}
+                    speakerDeviceId={speakerDeviceId}
+                    showEmotion={emotionViewEnabled}
+                    compact={presentationActive}
+                  />
+                </div>
+              </div>
+
+              <MaterialViewer
+                material={presentedMaterial}
+                page={presentationPage}
+                isTeacher={isTeacher}
+                loading={presentationLoading}
+                error={presentationError}
+                onPageChange={handlePresentationPageChange}
+                onClose={handleClosePresentation}
+              />
+            </div>
 
             {mediaLoading && (
               <div className="absolute left-1/2 top-4 -translate-x-1/2 z-20 border-[2px] border-pure-black bg-role-accent text-role-contrast px-4 py-1.5 text-label-sm font-bold shadow-[3px_3px_0px_#000000]">
@@ -590,6 +720,9 @@ const Meeting = () => {
             recordingError={recordingError}
             recordingNeedsUpload={recordingNeedsUpload && !isRecording}
             emotionPanelEnabled={emotionViewEnabled}
+            presentingMaterialId={presentedMaterial?.id}
+            presentationBusyId={presentationBusyId}
+            onPresentMaterial={handlePresentMaterial}
             onAnalyzeRecording={handleAnalyzeRecording}
             onPlaybackRecording={handlePlaybackRecording}
             onRetryRecordingUpload={handleRetryRecordingUpload}

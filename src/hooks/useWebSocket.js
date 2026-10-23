@@ -19,6 +19,15 @@ const toWireMessages = (message) => {
       { type: 'MIC_STATUS', payload: { enabled: Boolean(message.payload.mic) } },
     ];
   }
+  if (message.type === 'document.present') {
+    return [{ type: 'DOCUMENT_PRESENT', payload: message.payload }];
+  }
+  if (message.type === 'document.page') {
+    return [{ type: 'DOCUMENT_PAGE', payload: message.payload }];
+  }
+  if (message.type === 'document.stop') {
+    return [{ type: 'DOCUMENT_STOP', payload: {} }];
+  }
   if (message.type === 'room.leave') return [{ type: 'LEAVE' }];
   return [message];
 };
@@ -31,7 +40,7 @@ const fromWireMessage = (message) => {
   if (!event?.type) return [];
 
   if (event.type === 'JOIN' && Array.isArray(event.peers)) {
-    return event.peers.map((peer) => ({
+    const events = event.peers.map((peer) => ({
       type: 'participant.present',
       senderId: peer.user_id,
       payload: {
@@ -42,6 +51,10 @@ const fromWireMessage = (message) => {
         },
       },
     }));
+    if (event.presentation?.material_id) {
+      events.push({ type: 'document.present', payload: event.presentation });
+    }
+    return events;
   }
   if (event.type === 'JOIN') {
     return [{
@@ -74,6 +87,15 @@ const fromWireMessage = (message) => {
   }
   if (event.type === 'FRAME_RESULT') {
     return [{ ...event, senderId: event.student_id, payload: event }];
+  }
+  if (event.type === 'DOCUMENT_PRESENT') {
+    return [{ type: 'document.present', senderId: event.sender_id, payload: event.payload }];
+  }
+  if (event.type === 'DOCUMENT_PAGE') {
+    return [{ type: 'document.page', senderId: event.sender_id, payload: event.payload }];
+  }
+  if (event.type === 'DOCUMENT_STOP') {
+    return [{ type: 'document.stop', senderId: event.sender_id, payload: {} }];
   }
   return [{ ...event, senderId: event.sender_id }];
 };
