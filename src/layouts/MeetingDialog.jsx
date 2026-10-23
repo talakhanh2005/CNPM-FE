@@ -34,6 +34,9 @@ const MeetingDialog = ({
   recordingError,
   recordingNeedsUpload,
   emotionPanelEnabled = true,
+  presentingMaterialId,
+  presentationBusyId,
+  onPresentMaterial,
   onAnalyzeRecording,
   onPlaybackRecording,
   onRetryRecordingUpload,
@@ -96,7 +99,15 @@ const MeetingDialog = ({
 
         {activePanel === 'emotion' && <EmotionPanel participants={participants} />}
 
-        {activePanel === 'materials' && <MeetingMaterials meetingId={meetingId} isTeacher={userRole === 'teacher'} />}
+        {activePanel === 'materials' && (
+          <MeetingMaterials
+            meetingId={meetingId}
+            isTeacher={userRole === 'teacher'}
+            presentingMaterialId={presentingMaterialId}
+            presentationBusyId={presentationBusyId}
+            onPresent={onPresentMaterial}
+          />
+        )}
 
         {activePanel === 'settings' && (
           <div className="space-y-3 text-body-sm">

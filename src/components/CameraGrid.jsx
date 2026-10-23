@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion }) => {
+const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion, compact = false }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
@@ -33,7 +33,9 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion 
   return (
     <div
       data-testid={participant.isLocal ? 'local-camera-tile' : `remote-camera-${participant.id}`}
-      className="relative min-h-[220px] overflow-hidden border-[3px] border-pure-black bg-surface-container shadow-[4px_4px_0px_#000000] flex flex-col"
+      className={`relative overflow-hidden border-[3px] border-pure-black bg-surface-container shadow-[4px_4px_0px_#000000] flex flex-col ${
+        compact ? 'min-h-[150px] aspect-video' : 'min-h-[220px]'
+      }`}
     >
       <video
         ref={videoRef}
@@ -101,6 +103,7 @@ const MeetingCameraGrid = ({
   speakerOn = true,
   speakerDeviceId = '',
   showEmotion = true,
+  compact = false,
 }) => {
   const count = participants.length;
   const gridClass =
@@ -112,9 +115,21 @@ const MeetingCameraGrid = ({
           ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2'
           : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
 
+  if (!participants.length) {
+    return (
+      <section
+        className="flex min-h-[140px] w-full items-center justify-center border-[3px] border-dashed border-pure-black bg-surface-container p-4 text-center text-label-sm font-bold text-on-surface-variant"
+        data-testid="camera-grid"
+        aria-label="Khu vực camera"
+      >
+        Chưa có học sinh bật camera.
+      </section>
+    );
+  }
+
   return (
     <section
-      className={`grid min-h-0 w-full gap-4 ${gridClass}`}
+      className={`grid min-h-0 w-full gap-4 ${compact ? 'grid-cols-1' : gridClass}`}
       data-testid="camera-grid"
       aria-label="Khu vực camera"
     >
@@ -125,6 +140,7 @@ const MeetingCameraGrid = ({
           speakerOn={speakerOn}
           speakerDeviceId={speakerDeviceId}
           showEmotion={showEmotion && participant.role === 'student'}
+          compact={compact}
         />
       ))}
     </section>

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getMaterialDownload, getMeetingMaterials, uploadMaterial } from '../api/materialApi';
 import { getApiErrorMessage, getApiErrorPayload } from '../api/axiosClient';
 
-const ACCEPTED_DOCUMENTS = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt';
+const ACCEPTED_DOCUMENTS = '.pdf,.ppt,.pptx,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg';
 const ACCEPTED_EXTENSIONS = new Set(ACCEPTED_DOCUMENTS.split(','));
 const MAX_DOCUMENT_BYTES = 20 * 1024 * 1024;
 const MATERIAL_PAGE_SIZE = 20;
@@ -30,7 +30,7 @@ const validateDocument = (file) => {
     return 'Tên tài liệu không hợp lệ hoặc dài quá 255 ký tự.';
   }
   if (!ACCEPTED_EXTENSIONS.has(extension)) {
-    return 'Chỉ hỗ trợ PDF, Word, PowerPoint, Excel và TXT.';
+    return 'Chỉ hỗ trợ PDF, ảnh PNG/JPG, Word, PowerPoint, Excel và TXT.';
   }
   if (!file.size) return 'Tài liệu đang trống.';
   if (file.size > MAX_DOCUMENT_BYTES) return 'Tài liệu vượt quá giới hạn 20 MB.';
@@ -43,7 +43,17 @@ const formatBytes = (bytes = 0) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
-const MeetingMaterials = ({ meetingId, isTeacher }) => {
+const browserPresentable = (material) => (
+  material.content_type === 'application/pdf' || material.content_type?.startsWith('image/')
+);
+
+const MeetingMaterials = ({
+  meetingId,
+  isTeacher,
+  presentingMaterialId = '',
+  presentationBusyId = '',
+  onPresent,
+}) => {
   const inputRef = useRef(null);
   const [materials, setMaterials] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -151,7 +161,7 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="font-headline font-bold text-headline-sm">Chia sẻ tài liệu</div>
-              <div className="text-label-sm text-on-surface-variant mt-1">PDF, Word, PowerPoint, Excel hoặc TXT</div>
+              <div className="text-label-sm text-on-surface-variant mt-1">PDF, ảnh, Word, PowerPoint, Excel hoặc TXT</div>
             </div>
             <button
               type="button"
@@ -167,7 +177,14 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
 
       {error && <div className="bg-tertiary-container border-[2px] border-pure-black p-3 text-body-sm font-bold">{error}</div>}
       <div className="flex items-center justify-between">
-        <span className="text-label-sm font-bold uppercase">Tài liệu trong phòng</span>
+        <div>
+          <span className="text-label-sm font-bold uppercase">Tài liệu trong phòng</span>
+          {isTeacher && (
+            <p className="mt-1 text-xs text-on-surface-variant">
+              Chọn <strong>Trình chiếu</strong> để hiển thị PDF hoặc ảnh cho cả lớp.
+            </p>
+          )}
+        </div>
         <button type="button" disabled={loading || uploading} onClick={loadMaterials} className="text-label-sm font-bold underline disabled:opacity-50">Làm mới</button>
       </div>
       {loading && <div className="border-[2px] border-pure-black bg-surface p-4 text-center text-body-sm">Đang tải tài liệu...</div>}
@@ -182,15 +199,41 @@ const MeetingMaterials = ({ meetingId, isTeacher }) => {
                 <div className="text-xs text-on-surface-variant">{formatBytes(material.size_bytes)} • {new Date(material.created_at).toLocaleString('vi-VN')}</div>
               </div>
             </div>
-            <button
-              type="button"
-              disabled={downloadingId === material.id}
-              onClick={() => handleDownload(material)}
-              aria-label={`Tải ${material.filename}`}
-              className="shrink-0 p-2 bg-role-accent text-role-contrast border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] disabled:opacity-50"
-            >
-              <span className="material-symbols-outlined text-[20px]">download</span>
-            </button>
+            <div className="flex shrink-0 items-center gap-2">
+              {isTeacher && (
+                browserPresentable(material) ? (
+                  <button
+                    type="button"
+                    disabled={presentationBusyId === material.id || presentingMaterialId === material.id}
+                    onClick={() => onPresent?.(material)}
+                    aria-label={`Trình chiếu ${material.filename}`}
+                    title="Trình chiếu cho cả lớp"
+                    className="flex items-center gap-1.5 px-2.5 py-2 bg-bright-yellow text-pure-black border-[2px] border-pure-black font-bold text-xs shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+                  >
+                    <span className="material-symbols-outlined text-[20px]">
+                      {presentingMaterialId === material.id ? 'cast_connected' : 'present_to_all'}
+                    </span>
+                    <span>{presentingMaterialId === material.id ? 'Đang chiếu' : 'Trình chiếu'}</span>
+                  </button>
+                ) : (
+                  <span
+                    className="max-w-24 border border-pure-black bg-surface-container px-2 py-1 text-center text-[10px] font-bold leading-tight text-on-surface-variant"
+                    title="Trình duyệt chỉ hỗ trợ trình chiếu trực tiếp PDF và ảnh. Hãy chuyển tài liệu này sang PDF."
+                  >
+                    Cần bản PDF để chiếu
+                  </span>
+                )
+              )}
+              <button
+                type="button"
+                disabled={downloadingId === material.id}
+                onClick={() => handleDownload(material)}
+                aria-label={`Tải ${material.filename}`}
+                className="p-2 bg-role-accent text-role-contrast border-[2px] border-pure-black shadow-[2px_2px_0px_#000000] disabled:opacity-50"
+              >
+                <span className="material-symbols-outlined text-[20px]">download</span>
+              </button>
+            </div>
           </div>
         ))}
       </div>
