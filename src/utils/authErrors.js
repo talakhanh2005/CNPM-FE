@@ -8,8 +8,7 @@ const fieldNames = {
   teacher_registration_key: 'teacherRegistrationKey',
 };
 
-export const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-export const utf8Length = (value) => new TextEncoder().encode(value).length;
+export { isValidEmail, utf8Length } from './validation';
 
 const validationMessage = (field, detail) => {
   const type = String(detail?.type || '');

@@ -77,6 +77,7 @@ Không đặt TURN credential dài hạn trong biến `VITE_*` ở production v�
 ```bash
 npm run dev      # Chạy development server tại localhost:3000
 npm run lint     # Chạy Oxlint
+npm test         # Kiểm tra logic phân trang, form Admin, phân vai trò và bố cục camera
 npm run build    # Tạo production build trong dist/
 npm run preview  # Xem thử production build
 ```
@@ -89,21 +90,28 @@ src/
   api/
     axiosClient.js           Axios, Bearer token, refresh token và xử lý lỗi
     authApi.js               Register, login, me và logout
+    adminApi.js              Danh sách Admin, quản lý người dùng và hồ sơ cá nhân
     meetingApi.js            Meeting, ICE config, history và recording
     emotionApi.js            Gửi frame và lấy emotion log
     reportApi.js             Report và trạng thái phân tích recording
     materialApi.js           Upload/list/download tài liệu
 
   components/                Component UI dùng lại
+    admin/                   Form tài khoản/mật khẩu, hộp thoại chi tiết và UI Admin
   config/
     runtime.js               REST URL và WebSocket URL
     iceServers.js            STUN/TURN fallback và chuẩn hóa ICE server
   contexts/                  Auth provider và context
   hooks/
+    useAdminResource.js      Tải dữ liệu, hủy request cũ, làm mới và xử lý lỗi Admin
+    useAdminList.js          Phân trang danh sách Admin khi API không trả tổng số
+    useAdminTeacherNames.js  Tra tên giáo viên cho danh sách phòng học
     useWebSocket.js          WebSocket backend và chuyển đổi signaling protocol
     useWebRTC.js             Peer connection, SDP, ICE và remote stream
   layouts/                   Auth, dashboard, lobby và meeting panels
   pages/                     Login, register, dashboard, meeting và report
+    admin/                   Người dùng, phòng học và hồ sơ Admin
+  styles/admin.css           Giao diện Admin, tách biệt giao diện giáo viên/học sinh
   routes/                    Route và kiểm tra quyền truy cập
   utils/
     session.js               Lưu access/refresh token và current user
@@ -122,6 +130,10 @@ src/
 | `/student` | Học sinh | Dashboard học sinh |
 | `/meeting/:roomId` | Đã đăng nhập | Phòng học WebRTC |
 | `/report` | Giáo viên | Báo cáo AI của meeting `after_session` |
+| `/admin` | Admin | Chuyển tới danh sách người dùng |
+| `/admin/users` | Admin | Xem, sửa, đổi vai trò, đặt lại mật khẩu và xóa người dùng |
+| `/admin/meetings` | Admin | Xem phòng học và danh sách người tham gia |
+| `/admin/profile` | Admin | Sửa hồ sơ và đổi mật khẩu tài khoản đang đăng nhập |
 
 Route `/` chuyển tới dashboard dựa trên `user.role` do backend trả về.
 
@@ -144,7 +156,41 @@ POST /auth/login
 - Đăng xuất gọi `/auth/logout` rồi xoá dữ liệu phiên phía FE.
 - Backend quyết định việc đăng ký giáo viên có cần mã mời hay không.
 
+## Quản trị hệ thống
+
+Đăng nhập bằng tài khoản có `role: admin` do BE cấp; FE tự chuyển tới `/admin/users`. Admin dùng cùng cơ chế access/refresh token với các vai trò khác. Giáo viên/học sinh không vào được route Admin; Admin cũng không được chuyển vào phòng học hoặc báo cáo dành riêng cho giáo viên.
+
+| Nhóm | API đang sử dụng | Chức năng |
+|---|---|---|
+| Người dùng | `GET /admin/users` | Danh sách có phân trang |
+| Chi tiết người dùng | `GET /v1/users/{id}` | Tải thông tin mới nhất trước khi sửa |
+| Cập nhật | `PUT /v1/users/{id}` | Họ tên, email, vai trò; đặt mật khẩu mới qua form riêng |
+| Xóa tài khoản | `DELETE /v1/users/{id}` | Yêu cầu nhập email xác nhận; không cho tự xóa |
+| Phòng học | `GET /admin/meetings` | Danh sách và chi tiết lấy từ dữ liệu danh sách |
+| Tên giáo viên | `GET /v1/users/{id}` | Tra tên khi thông tin người tham gia chưa có giáo viên |
+| Hồ sơ Admin | `GET/PUT /v1/users/me` | Hồ sơ cá nhân, đổi mật khẩu và đồng bộ phiên đăng nhập FE |
+
+Danh sách hiển thị 20 mục/trang và lấy thêm 1 mục để xác định có trang sau. Tìm kiếm/lọc chỉ áp dụng **trong trang đang xem**, được ghi rõ trên giao diện; không hiển thị tổng số toàn hệ thống vì BE chưa trả trường này. Thông tin phòng là ảnh chụp tại lần tải gần nhất; dùng **Làm mới** để cập nhật.
+
+API Admin hiện bao gồm cả phòng được xóa mềm, nhưng chưa trả cờ để phân biệt các phòng này. FE hiển thị đúng danh sách nhận được, không tự suy đoán phòng đã xóa.
+
+Không có số liệu/demo cố định trong Admin. Các chức năng tạo tài khoản, quản lý mã mời/whitelist, khóa tài khoản, thao tác phòng học hay báo cáo tổng hệ thống chưa có API Admin tương ứng nên không có nút giả trên UI.
+
+Lưu ý hợp đồng BE hiện tại: xóa người dùng chỉ xóa tài khoản và refresh session, không xóa phòng học/bản ghi liên quan. Hộp xác nhận giải thích việc dữ liệu cũ được giữ lại. BE chưa kiểm tra các quan hệ dữ liệu trước khi xóa. Đổi mật khẩu có hiệu lực ở lần đăng nhập tiếp theo, không có API thu hồi mọi phiên từ màn hình này.
+
+Nếu chưa có Admin, provision bằng công cụ hiện có của BE (chạy trong thư mục `CNPM-BE`; mật khẩu được nhập tương tác):
+
+```powershell
+.\.venv\Scripts\python.exe -m scripts.create_admin --email admin@example.com --name "Quản trị viên"
+```
+
+Đăng ký giáo viên theo mã mời độc lập với Admin UI: cấu hình `ALLOW_TEACHER_REGISTRATION=false` và `TEACHER_REGISTRATION_KEY` ở BE, sau đó khởi động lại BE. Màn hình Admin không thay đổi các biến môi trường này.
+
+Kiểm thử Admin trên trình duyệt với BE dùng dữ liệu tạm: xem [tests/README.md](tests/README.md).
+
 ## Meeting API
+
+Đồng hồ trên thanh meeting dùng **mốc chung `created_at` của phòng từ BE**, không lưu mốc riêng theo tài khoản/trình duyệt. Teacher và student vào muộn, reconnect, F5 hay vào lại đều tính từ cùng mốc này, bao gồm thời gian mất kết nối. FE tính bằng chênh lệch thời gian thực nên tab chạy nền không làm hụt giây; nếu thiếu mốc hợp lệ thì hiển thị `--:--:--`, không tự bắt đầu một đồng hồ riêng. Áp dụng cho cả realtime và after_session, không thay đổi bộ đếm ghi hình. Hiện FE tạo phòng với `status: ongoing` nên phòng bắt đầu ngay khi tạo. BE chưa có `started_at`: nếu sau này tạo phòng trước rồi mới bắt đầu, cần bổ sung trường này để không tính cả thời gian chờ. Đồng hồ các thiết bị cần đặt đúng giờ hệ thống; FE chưa đồng bộ độ lệch đồng hồ với máy chủ.
 
 Các endpoint FE đang sử dụng hoặc đã chuẩn bị:
 

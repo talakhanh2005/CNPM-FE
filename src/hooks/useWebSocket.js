@@ -52,7 +52,7 @@ const fromWireMessage = (message) => {
       },
     }));
     if (event.presentation?.material_id) {
-      events.push({ type: 'document.present', payload: event.presentation });
+      events.push({ type: 'document.present', payload: event.presentation, fromSnapshot: true });
     }
     return events;
   }
@@ -130,10 +130,11 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
       if (disposed) return;
       updateStatus(reconnectAttempts ? 'reconnecting' : 'connecting');
       nativeSocket = new WebSocket(meetingWebSocketUrl(meetingId));
+      let authenticated = false;
 
       const transport = {
         send(message) {
-          if (nativeSocket?.readyState !== WebSocket.OPEN) return false;
+          if (!authenticated || nativeSocket?.readyState !== WebSocket.OPEN) return false;
           toWireMessages(message).forEach((wireMessage) => nativeSocket.send(JSON.stringify(wireMessage)));
           return true;
         },
@@ -145,9 +146,7 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
       socketRef.current = transport;
 
       nativeSocket.onopen = () => {
-        reconnectAttempts = 0;
         lastErrorCode = null;
-        updateStatus('connected');
         nativeSocket.send(JSON.stringify({ type: 'AUTH', token: getAccessToken() }));
       };
 
@@ -155,6 +154,11 @@ const useWebSocket = ({ meetingId, user, onEvent, onStatus }) => {
         try {
           const message = JSON.parse(data);
           if (!message.success) lastErrorCode = message.data?.code;
+          if (message.success && message.data?.type === 'JOIN' && Array.isArray(message.data.peers)) {
+            authenticated = true;
+            reconnectAttempts = 0;
+            updateStatus('connected');
+          }
           fromWireMessage(message).forEach((event) => {
             if (event.type === 'room.ended') ended = true;
             callbacksRef.current.onEvent?.(event);

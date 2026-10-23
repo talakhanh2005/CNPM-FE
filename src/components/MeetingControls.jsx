@@ -43,6 +43,7 @@ const MeetingControls = ({
   onDialogToggle,
   onLeave,
   leaving = false,
+  hideLeave = false,
   isTeacher = false,
   isRecording = false,
   recordingLocked = false,
@@ -207,15 +208,17 @@ const MeetingControls = ({
         </button>
 
         {/* Leave Room Button */}
-        <button
-          type="button"
-          disabled={leaving}
-          onClick={onLeave}
-          className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-vivid-red text-on-error hover:bg-error border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md uppercase cursor-pointer disabled:opacity-50"
-        >
-          <span className="material-symbols-outlined text-[20px]">logout</span>
-          <span>{leaving ? 'Đang thoát...' : 'Rời phòng'}</span>
-        </button>
+        {!hideLeave && (
+          <button
+            type="button"
+            disabled={leaving}
+            onClick={onLeave}
+            className="flex items-center gap-1.5 px-4 py-2 sm:px-5 sm:py-2.5 bg-vivid-red text-on-error hover:bg-error border-[3px] border-pure-black shadow-[3px_3px_0px_#000000] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0px_#000000] transition-all font-headline font-bold text-label-md uppercase cursor-pointer disabled:opacity-50"
+          >
+            <span className="material-symbols-outlined text-[20px]">logout</span>
+            <span>{leaving ? 'Đang thoát...' : 'Rời phòng'}</span>
+          </button>
+        )}
       </div>
     </footer>
   );

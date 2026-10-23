@@ -18,7 +18,6 @@ const MaterialViewer = ({
   isTeacher = false,
   loading = false,
   error = '',
-  onPageChange,
   onClose,
 }) => {
   if (!material && !loading && !error) return null;
@@ -42,39 +41,6 @@ const MaterialViewer = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {pdf && isTeacher && (
-            <div className="flex items-center border-[2px] border-pure-black bg-surface">
-              <button
-                type="button"
-                disabled={page <= 1}
-                onClick={() => onPageChange?.(Math.max(1, page - 1))}
-                className="flex h-9 w-9 items-center justify-center disabled:opacity-40"
-                aria-label="Trang trước"
-              >
-                <span className="material-symbols-outlined">chevron_left</span>
-              </button>
-              <label className="flex items-center gap-1 border-x-[2px] border-pure-black px-2 text-label-sm font-bold">
-                Trang
-                <input
-                  type="number"
-                  min="1"
-                  max="10000"
-                  value={page}
-                  onChange={(event) => onPageChange?.(Math.max(1, Number(event.target.value) || 1))}
-                  className="w-14 bg-transparent text-center font-mono outline-none"
-                  aria-label="Số trang trình chiếu"
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => onPageChange?.(page + 1)}
-                className="flex h-9 w-9 items-center justify-center"
-                aria-label="Trang sau"
-              >
-                <span className="material-symbols-outlined">chevron_right</span>
-              </button>
-            </div>
-          )}
           <button
             type="button"
             onClick={onClose}

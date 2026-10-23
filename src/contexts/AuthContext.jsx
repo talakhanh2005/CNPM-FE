@@ -50,6 +50,13 @@ export const AuthProvider = ({ children }) => {
 
   const register = useCallback((payload) => registerApi(payload), []);
 
+  const updateCurrentUser = useCallback((nextUser) => {
+    // Ignore a late profile response after logout or a switch to another account.
+    if (!getAccessToken() || getStoredUser()?.id !== nextUser.id) return;
+    saveUser(nextUser);
+    setUser(nextUser);
+  }, []);
+
   const logout = useCallback(() => {
     const refreshToken = getRefreshToken();
     const request = refreshToken ? logoutApi(refreshToken).catch(() => undefined) : Promise.resolve();
@@ -66,7 +73,8 @@ export const AuthProvider = ({ children }) => {
     login,
     register,
     logout,
-  }), [isLoading, login, logout, register, user]);
+    updateCurrentUser,
+  }), [isLoading, login, logout, register, updateCurrentUser, user]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

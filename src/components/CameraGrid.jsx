@@ -1,6 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { calculateCameraColumns, calculateCameraMaxWidth } from '../utils/cameraLayout';
 
-const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion, compact = false }) => {
+const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion, compact }) => {
   const videoRef = useRef(null);
   const audioRef = useRef(null);
   const cameraVisible = Boolean(participant.stream) && participant.cameraOn !== false;
@@ -33,9 +34,7 @@ const ParticipantTile = ({ participant, speakerOn, speakerDeviceId, showEmotion,
   return (
     <div
       data-testid={participant.isLocal ? 'local-camera-tile' : `remote-camera-${participant.id}`}
-      className={`relative overflow-hidden border-[3px] border-pure-black bg-surface-container shadow-[4px_4px_0px_#000000] flex flex-col ${
-        compact ? 'min-h-[150px] aspect-video' : 'min-h-[220px]'
-      }`}
+      className={`relative aspect-video shrink-0 overflow-hidden border-[3px] border-pure-black bg-surface-container shadow-[4px_4px_0px_#000000] flex flex-col ${compact ? 'w-full' : 'meeting-camera-tile'}`}
     >
       <video
         ref={videoRef}
@@ -105,15 +104,35 @@ const MeetingCameraGrid = ({
   showEmotion = true,
   compact = false,
 }) => {
+  const gridRef = useRef(null);
   const count = participants.length;
-  const gridClass =
-    count <= 1
-      ? 'grid-cols-1'
-      : count <= 2
-        ? 'grid-cols-1 sm:grid-cols-2'
-        : count <= 4
-          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-2'
-          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+  const columns = calculateCameraColumns(count);
+  useLayoutEffect(() => {
+    if (compact || !count || !gridRef.current) return undefined;
+    const grid = gridRef.current;
+    let previousHeight = 0;
+
+    // Height limits camera size; width changes during the panel animation are
+    // handled by CSS, without recalculating columns or wrapping between frames.
+    const updateLayout = (height) => {
+      if (height <= 0 || height === previousHeight) return;
+      previousHeight = height;
+      for (let columnCount = 1; columnCount <= columns; columnCount += 1) {
+        const maxWidth = calculateCameraMaxWidth(count, columnCount, height);
+        grid.style.setProperty(`--camera-max-width-${columnCount}`, `${maxWidth}px`);
+      }
+    };
+
+    updateLayout(grid.clientHeight);
+    if (typeof ResizeObserver === 'undefined') {
+      const updateOnWindowResize = () => updateLayout(grid.clientHeight);
+      window.addEventListener('resize', updateOnWindowResize);
+      return () => window.removeEventListener('resize', updateOnWindowResize);
+    }
+    const observer = new ResizeObserver(([entry]) => updateLayout(Math.floor(entry.contentRect.height)));
+    observer.observe(grid);
+    return () => observer.disconnect();
+  }, [compact, count, columns]);
 
   if (!participants.length) {
     return (
@@ -129,20 +148,28 @@ const MeetingCameraGrid = ({
 
   return (
     <section
-      className={`grid min-h-0 w-full gap-4 ${compact ? 'grid-cols-1' : gridClass}`}
+      ref={gridRef}
+      className={compact ? 'w-full' : 'meeting-camera-grid flex h-full min-h-0 w-full flex-col'}
       data-testid="camera-grid"
       aria-label="Khu vực camera"
     >
-      {participants.map((participant) => (
-        <ParticipantTile
-          key={participant.id}
-          participant={participant}
-          speakerOn={speakerOn}
-          speakerDeviceId={speakerDeviceId}
-          showEmotion={showEmotion && participant.role === 'student'}
-          compact={compact}
-        />
-      ))}
+      <div
+        className={compact
+          ? 'grid w-full grid-cols-1 gap-3'
+          : 'meeting-camera-tiles mx-auto my-auto flex max-w-full flex-wrap justify-center gap-4'}
+        data-columns={compact ? undefined : columns}
+      >
+        {participants.map((participant) => (
+          <ParticipantTile
+            key={participant.id}
+            participant={participant}
+            speakerOn={speakerOn}
+            speakerDeviceId={speakerDeviceId}
+            showEmotion={showEmotion && participant.role === 'student'}
+            compact={compact}
+          />
+        ))}
+      </div>
     </section>
   );
 };
